@@ -20,15 +20,21 @@ describe('Smoke tests', function () {
 
 describe.only('Compare to StatTransfer CSV export', function () {
     this.timeout(20000);
+
+    const options = {
+        header: true,
+        quotedString: true
+    };
+
     for (const filename of sasFilenames) {
         it(filename, async () => {
             const data = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
-            const options = {
-                columns: data.cols.map(col => col.name),
-                header: true,
-                quotedString: true
-            };
-            const csv = await stringifyAsync(data.rows, options);
+            options.columns = data.cols.map(col => col.name);
+            let csv = await stringifyAsync(data.rows, options);
+
+            // Replace NaN with nothing, to facilitate comparison
+            csv = csv.replace(/,NaN/g, ',');
+
             const filename2 = filename.replace('sas7bdat', 'csv');
             const csv2 = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
 
