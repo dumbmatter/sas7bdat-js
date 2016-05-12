@@ -1,7 +1,7 @@
 // TODO:
 // variable names (like colName -> colNames)
 // simplify (like colNames can just be array of strings)
-// "not sure" - lots of factors of 2
+// "not sure" - lots of factors of 2 - maybe padding needed everywhere, not just at end? put in read functions
 // stream
 // tests
 // - endian
@@ -166,7 +166,15 @@ const parse = async file => {
                             len = MIN_NUMERIC_LENGTH;
                         }
 
-                        rows[i][col.name] = read.flo(raw, 0, len);
+                        if (col.format && C.TIME_FORMAT_STRINGS.includes(col.format)) {
+                            rows[i][col.name] = read.time(raw, 0, len);
+                        } else if (col.format && C.DATE_TIME_FORMAT_STRINGS.includes(col.format)) {
+                            rows[i][col.name] = read.datetime(raw, 0, len);
+                        } else if (col.format && C.DATE_FORMAT_STRINGS.includes(col.format)) {
+                            rows[i][col.name] = read.date(raw, 0, len);
+                        } else {
+                            rows[i][col.name] = read.flo(raw, 0, len);
+                        }
                     } else if (col.type === 'character') {
                         rows[i][col.name] = read.str(raw, 0, len).trim();
                     } else {
