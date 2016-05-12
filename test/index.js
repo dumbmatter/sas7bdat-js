@@ -25,7 +25,7 @@ describe('Smoke tests', function () {
 });
 
 describe.only('Compare to StatTransfer CSV export', function () {
-    this.timeout(20000);
+    this.timeout(100000);
 
     const options = {
         columns: true

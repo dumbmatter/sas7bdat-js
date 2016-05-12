@@ -154,20 +154,21 @@ const parse = async file => {
                 if (col.len > 0) {
                     let raw = read.raw(page.data, offset, col.len);
 
+                    let len = col.len;
                     if (col.type === 'numeric') {
                         const MIN_NUMERIC_LENGTH = 8;
-                        if (col.len < MIN_NUMERIC_LENGTH) {
+                        if (len < MIN_NUMERIC_LENGTH) {
                             const padding = [];
-                            for (let i = 0; i < (MIN_NUMERIC_LENGTH - col.len); i++) {
+                            for (let i = 0; i < (MIN_NUMERIC_LENGTH - len); i++) {
                                 padding.push(0x00);
                             }
                             raw = Buffer.concat([Buffer.from(padding), raw]);
-                            col.len = MIN_NUMERIC_LENGTH;
+                            len = MIN_NUMERIC_LENGTH;
                         }
 
-                        rows[i][col.name] = read.flo(raw, 0, col.len);
+                        rows[i][col.name] = read.flo(raw, 0, len);
                     } else if (col.type === 'character') {
-                        rows[i][col.name] = read.str(raw, 0, col.len).trim();
+                        rows[i][col.name] = read.str(raw, 0, len).trim();
                     } else {
                         throw new Error(`Column has unknown type: ${col.type}`);
                     }
