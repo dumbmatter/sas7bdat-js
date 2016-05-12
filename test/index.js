@@ -2,13 +2,19 @@ const assert = require('assert');
 const denodeify = require('denodeify');
 const fs = require('fs');
 const path = require('path');
-const stringify = require('csv-stringify');
+const csvParse = require('csv-parse');
 const sas7bdat = require('../index');
 
-const stringifyAsync = denodeify(stringify);
+const csvParseAsync = denodeify(csvParse);
 
 const sasFilenames = fs.readdirSync(path.join(__dirname, 'data/sas7bdat'))
     .filter(filename => filename.includes('sas7bdat'));
+
+const assertCloseEnough = (x, y) => {
+    if (Math.abs((x - y) / x) > 1e-10) {
+        throw new Error(`Floats ${x} and ${y} are too far apart`);
+    }
+};
 
 // Smoke tests - run on various data files and see if there is an error
 describe('Smoke tests', function () {
@@ -22,23 +28,32 @@ describe.only('Compare to StatTransfer CSV export', function () {
     this.timeout(20000);
 
     const options = {
-        header: true,
-        quotedString: true
+        columns: true
     };
 
     for (const filename of sasFilenames) {
         it(filename, async () => {
             const data = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
-            options.columns = data.cols.map(col => col.name);
-            let csv = await stringifyAsync(data.rows, options);
-
-            // Replace NaN with nothing, to facilitate comparison
-            csv = csv.replace(/,NaN/g, ',');
+            const rows = data.rows;
 
             const filename2 = filename.replace('sas7bdat', 'csv');
-            const csv2 = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
+            const csv = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
+            const rows2 = await csvParseAsync(csv, options);
 
-            assert.equal(csv, csv2);
+            assert.equal(rows.length, rows2.length);
+            for (let i = 0; i < rows.length; i++) {
+                const cols = Object.keys(rows[i]);
+                assert.deepEqual(cols, Object.keys(rows2[i]));
+
+                for (const col of cols) {
+                    if (typeof rows[i][col] === 'string') {
+                        assert.equal(rows[i][col], rows2[i][col]);
+                    } else {
+                        const f = parseFloat(rows2[i][col]);
+                        assertCloseEnough(rows[i][col], f);
+                    }
+                }
+            }
         });
     }
 });
