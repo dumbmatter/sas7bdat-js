@@ -4,8 +4,8 @@
   "description": "",
   "main": "build/index.js",
   "scripts": {
-    "build": "rm -rf build && babel index.js lib/*.js -d build",
-    "eslint": "eslint index.js lib/*.js",
+    "build": "rm -rf build && babel index.js -d build",
+    "eslint": "eslint index.js",
     "mocha": "mocha --compilers js:babel-register",
     "test": "npm run eslint && npm run mocha"
   },

@@ -86,7 +86,7 @@
         "no-undef": "error",
         "no-undef-init": "error",
         "no-undefined": "off",
-        "no-underscore-dangle": "error",
+        "no-underscore-dangle": "off",
         "no-unreachable": "error",
         "no-unused-expressions": "error",
         "no-unused-vars": ["error", {"vars": "all", "args": "after-used"}],
@@ -96,7 +96,7 @@
         "no-extra-parens": "off",
 
         "brace-style": ["error", "1tbs", {"allowSingleLine": true}],
-        "camelcase": "error",
+        "camelcase": ["off"],
         "comma-spacing": "error",
         "comma-style": ["error", "last"],
         "complexity": ["off", 11],

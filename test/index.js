@@ -7,8 +7,7 @@ const sas7bdat = require('../index');
 
 const csvParseAsync = denodeify(csvParse);
 
-const sasFilenames = fs.readdirSync(path.join(__dirname, 'data/sas7bdat'))
-    .filter(filename => filename.includes('sas7bdat'));
+const sasFilenames = fs.readdirSync(path.join(__dirname, 'data/sas7bdat'));
 
 const assertCloseEnough = (x, y) => {
     if (Math.abs((x - y) / x) > 1e-10) {
@@ -17,14 +16,14 @@ const assertCloseEnough = (x, y) => {
 };
 
 // Smoke tests - run on various data files and see if there is an error
-describe('Smoke tests', function () {
+describe.only('Smoke tests', function () {
     this.timeout(20000);
     for (const filename of sasFilenames) {
         it(filename, () => sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename)));
     }
 });
 
-describe.only('Compare to StatTransfer CSV export', function () {
+describe('Compare to StatTransfer CSV export', function () {
     this.timeout(100000);
 
     const options = {
