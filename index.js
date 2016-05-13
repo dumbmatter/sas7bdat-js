@@ -2,6 +2,7 @@
 // confirm output of _read_bytes (buffer) is being compared correctly
 // make sure } catch (err) { } is not hiding actual error
 // encoding_errors - wrap in try/catch to hide errors
+// osteo_analysis_data.sas7bdat
 
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
@@ -1553,7 +1554,7 @@ class SASHeader {
         if (this.PAGE_META_MIX_AMD.includes(this.parent.current_page_type)) {
             this.process_page_metadata();
         }
-        return this.PAGE_MIX_DATA_TYPE.includes(this.parent.current_page_type) || this.parent.current_page_data_subheader_pointers;
+        return this.PAGE_MIX_DATA_TYPE.includes(this.parent.current_page_type) || this.parent.current_page_data_subheader_pointers.length > 0;
     }
 
     process_page_metadata() {
@@ -1567,7 +1568,7 @@ class SASHeader {
             if (pointer.compression !== this.TRUNCATED_SUBHEADER_ID) {
                 const subheader_signature = this.read_subheader_signature(pointer.offset);
                 const subheader_index = this.get_subheader_class(subheader_signature, pointer.compression, pointer.type);
-                if (subheader_index !== null) {
+                if (subheader_index !== undefined) {
                     if (subheader_index !== this.DATA_SUBHEADER_INDEX) {
                         const Cls = this.SUBHEADER_INDEX_TO_CLASS[subheader_index];
                         if (Cls === undefined) {

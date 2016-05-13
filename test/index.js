@@ -16,14 +16,14 @@ const assertCloseEnough = (x, y) => {
 };
 
 // Smoke tests - run on various data files and see if there is an error
-describe.only('Smoke tests', function () {
-    this.timeout(20000);
+describe('Smoke tests', function () {
+    this.timeout(100000);
     for (const filename of sasFilenames) {
         it(filename, () => sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename)));
     }
 });
 
-describe('Compare to StatTransfer CSV export', function () {
+describe.skip('Compare to StatTransfer CSV export', function () {
     this.timeout(100000);
 
     const options = {
