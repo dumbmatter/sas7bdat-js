@@ -1,6 +1,7 @@
 // anything starting wtih \x needs to be updated
 // confirm output of _read_bytes (buffer) is being compared correctly
-// Change } catch (err) { throw err; } to hide error
+// make sure } catch (err) { } is not hiding actual error
+// encoding_errors - wrap in try/catch to hide errors
 
 /*from __future__ import division, absolute_import, print_function,\
     unicode_literals
@@ -78,8 +79,12 @@ const structUnpack = (fmt, raw_bytes) => {
             return raw_bytes.readInt16LE();
         }
     }
-}
+};
 
+// Could use encoding_errors... not sure what the implication would be though
+const decode = (name, encoding, encoding_errors) => {
+    return name.toString(encoding);
+};
 
 
 /*class Decompressor {
@@ -445,7 +450,6 @@ class SAS7BDAT {
         this.properties = this.header.properties;
         this.header.parse_metadata();
         this.logger.debug('\n%s', this.header);
-/*        this._iter = this.readlines()*/
     }
 
 /*    __enter__() {
@@ -606,80 +610,83 @@ class SAS7BDAT {
         return val;
     }
 
-/*    readlines() {
-        """
-        readlines() -> generator which yields lists of values, each a line
-        from the file.
+    /*
+    readlines() -> generator which yields lists of values, each a line
+    from the file.
 
-        Possible values in the list are null, string, float, datetime.datetime,
-        datetime.date, and datetime.time.
-        """
-        bit_offset = this.header.PAGE_BIT_OFFSET
-        subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH
-        row_count = this.header.properties.row_count
-        current_row_in_file_index = 0
-        current_row_on_page_index = 0
-        if !this.skip_header:
-            yield [x.name.decode(this.encoding, this.encoding_errors)
-                   for x in this.columns]
-        if !this.cached_page:
+    Possible values in the list are null, string, float, datetime.datetime,
+    datetime.date, and datetime.time.
+    */
+    * readlines() {
+console.log('readlines')
+        const bit_offset = this.header.PAGE_BIT_OFFSET
+        const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH
+        const row_count = this.header.properties.row_count
+        let current_row_in_file_index = 0
+        let current_row_on_page_index = 0
+        if (!this.skip_header) {
+console.log('header')
+            yield this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors))
+        }
+        if (!this.cached_page) {
             fs.seekSync(this._file, this.properties.header_length, 0);
             this._read_next_page()
-        while current_row_in_file_index < row_count:
+        }
+        while (current_row_in_file_index < row_count) {
             current_row_in_file_index += 1
-            current_page_type = this.current_page_type
-            if current_page_type === this.header.PAGE_META_TYPE:
-                try:
-                    current_subheader_pointer =\
-                        this.current_page_data_subheader_pointers[
-                            current_row_on_page_index
-                        ]
-                except IndexError:
-                    this._read_next_page()
-                    current_row_on_page_index = 0
-                } else {
+            const current_page_type = this.current_page_type
+            if (current_page_type === this.header.PAGE_META_TYPE) {
+                if (current_row_on_page_index < this.current_page_data_subheader_pointers.length && current_row_on_page_index >= 0) {
+                    const current_subheader_pointer = this.current_page_data_subheader_pointers[current_row_on_page_index];
                     current_row_on_page_index += 1
-                    cls = this.header.SUBHEADER_INDEX_TO_CLASS[this.header.DATA_SUBHEADER_INDEX];
-                    if cls === null:
+                    const cls = this.header.SUBHEADER_INDEX_TO_CLASS[this.header.DATA_SUBHEADER_INDEX];
+                    if (cls === undefined) {
                         throw new NotImplementedError();
-                    cls(this).process_subheader(
+                    }
+                    new cls(this).process_subheader(
                         current_subheader_pointer.offset,
                         current_subheader_pointer.length
                     )
-                    if current_row_on_page_index ==\
-                            this.current_page_data_subheader_pointers.length {
+                    if (current_row_on_page_index === this.current_page_data_subheader_pointers.length) {
                         this._read_next_page()
                         current_row_on_page_index = 0
-            } else if (current_page_type in this.header.PAGE_MIX_TYPE:
-                if this.align_correction:
+                    }
+                } else {
+                    this._read_next_page()
+                    current_row_on_page_index = 0
+                }
+            } else if (this.header.PAGE_MIX_TYPE.includes(current_page_type)) {
+                let align_correction;
+                if (this.align_correction) {
                     align_correction = (
                         bit_offset + this.header.SUBHEADER_POINTERS_OFFSET +
                         this.current_page_subheaders_count *
                         subheader_pointer_length
-                    ) % 8
+                    ) % 8;
                 } else {
-                    align_correction = 0
-                offset = (
+                    align_correction = 0;
+                }
+                const offset = (
                     bit_offset + this.header.SUBHEADER_POINTERS_OFFSET +
                     align_correction + this.current_page_subheaders_count *
                     subheader_pointer_length + current_row_on_page_index *
                     this.properties.row_length
                 )
-                try:
+                try {
                     this.current_row = this._process_byte_array_with_data(
                         offset,
                         this.properties.row_length
                     )
-                except:
-                    throw new Error(`failed to process data (you might want to try passing align_correction=${!this.align_correction} to the SAS7BDAT constructor)`);
+                } catch (err) {
+                    console.log(`failed to process data (you might want to try passing align_correction=${!this.align_correction} to the SAS7BDAT constructor)`);
+                    throw err;
+                }
                 current_row_on_page_index += 1
-                if current_row_on_page_index === Math.min(
-                    this.properties.row_count,
-                    this.properties.mix_page_row_count
-                ) {
+                if (current_row_on_page_index === Math.min(this.properties.row_count, this.properties.mix_page_row_count)) {
                     this._read_next_page()
                     current_row_on_page_index = 0
-            } else if (current_page_type === this.header.PAGE_DATA_TYPE:
+                }
+            } else if (current_page_type === this.header.PAGE_DATA_TYPE) {
                 this.current_row = this._process_byte_array_with_data(
                     bit_offset + this.header.SUBHEADER_POINTERS_OFFSET +
                     current_row_on_page_index *
@@ -687,14 +694,18 @@ class SAS7BDAT {
                     this.properties.row_length
                 )
                 current_row_on_page_index += 1
-                if current_row_on_page_index === this.current_page_block_count:
+                if (current_row_on_page_index === this.current_page_block_count) {
                     this._read_next_page()
                     current_row_on_page_index = 0
+                }
             } else {
                 throw new Error('unknown page type: %s', current_page_type)
+            }
             yield this.current_row
+        }
+    }
 
-    _read_next_page() {
+    /*_read_next_page() {
         this.current_page_data_subheader_pointers = []
         this.cached_page = this._file.read(this.properties.page_length)
         if this.cached_page.length <= 0:
@@ -762,9 +773,9 @@ class SAS7BDAT {
                             'number', temp, length
                         ))
             } else { // string
-                row_elements.push(this._read_val(
+                row_elements.push(decode(this._read_val(
                     's', temp, length
-                ).decode(this.encoding, this.encoding_errors))
+                ), this.encoding, this.encoding_errors))
         return row_elements
 
     convert_file(out_file, delimiter=',', step_size=100000) {
@@ -1077,8 +1088,6 @@ class ColumnNameSubheader extends ProcessingSubheader {
                 'h', vals[text_subheader],
                 this.COLUMN_NAME_TEXT_SUBHEADER_LENGTH
             )
-// Being called too many times! why?
-console.log([text_subheader, col_name_offset, col_name_length, idx])
             const col_offset = this.parent._read_val(
                 'h', vals[col_name_offset],
                 this.COLUMN_NAME_OFFSET_LENGTH
@@ -1566,30 +1575,23 @@ console.log(this.properties);
     }
 
     process_page_metadata() {
-console.log('process_page_metadata')
         const parent = this.parent;
         const bit_offset = this.PAGE_BIT_OFFSET;
         for (let i = 0; i < parent.current_page_subheaders_count; i++) {
-console.log(i);
             const pointer = this.process_subheader_pointers(this.SUBHEADER_POINTERS_OFFSET + bit_offset, i);
             if (!pointer.length) {
                 continue;
             }
-console.log(pointer);
             if (pointer.compression !== this.TRUNCATED_SUBHEADER_ID) {
                 const subheader_signature = this.read_subheader_signature(pointer.offset);
                 const subheader_index = this.get_subheader_class(subheader_signature, pointer.compression, pointer.type);
-console.log('subheader_index', subheader_index)
                 if (subheader_index !== null) {
                     if (subheader_index !== this.DATA_SUBHEADER_INDEX) {
-console.log('find cls');
                         const cls = this.SUBHEADER_INDEX_TO_CLASS[subheader_index];
                         if (cls === undefined) {
                             throw new NotImplementedError();
                         }
-console.log('call cls');
                         new cls(parent).process_subheader(pointer.offset, pointer.length);
-console.log('after 1');
                     } else {
                         parent.current_page_data_subheader_pointers.push(pointer);
                     }
@@ -1598,7 +1600,6 @@ console.log('after 1');
                 }
             }
         }
-console.log('after');
     }
 
     read_subheader_signature(offset) {
@@ -1649,4 +1650,7 @@ process.on('exit', () => {
 });
 
 const data = new SAS7BDAT('test.sas7bdat')
-console.log(data);
+const gen = data.readlines();
+console.log('foo', gen.next());
+console.log('foo', gen.next());
+console.log('foo', gen.next());
