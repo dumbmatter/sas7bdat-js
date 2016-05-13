@@ -292,7 +292,7 @@ class RDCDecompressor extends Decompressor {
     decompress_row(offset, length, result_length, page) {
         b = this.to_ord
         c = this.to_chr
-        src_row = [b(x) for x in page[offset:offset + length]]
+        src_row = [b(x) for x in page.slice(offset, offset + length)]
         out_row = [0] * result_length
         src_offset = 0
         out_offset = 0
@@ -339,7 +339,7 @@ class RDCDecompressor extends Decompressor {
                     src_offset += 1
                     out_offset += length
                     continue
-                two_bytes_marker = src_row[src_offset:src_offset + 2]
+                two_bytes_marker = src_row.slice(src_offset, src_offset + 2)
                 if this.is_two_bytes_marker(two_bytes_marker) {
                     length = this.get_length_of_two_bytes_pattern(
                         two_bytes_marker
@@ -357,7 +357,7 @@ class RDCDecompressor extends Decompressor {
                     src_offset += 2
                     out_offset += length
                     continue
-                three_bytes_marker = src_row[src_offset:src_offset + 3]
+                three_bytes_marker = src_row.slice(src_offset, src_offset + 3)
                 if this.is_three_bytes_marker(three_bytes_marker) {
                     p_type = (three_bytes_marker[0] >> 4) & 0x0F
                     back_offset = 0
@@ -378,7 +378,7 @@ class RDCDecompressor extends Decompressor {
                     } else {
                         start = out_offset - back_offset
                         end = start + length
-                        pattern = out_row[start:end]
+                        pattern = out_row.slice(start, end)
                     out_row[out_offset:out_offset + length] = pattern
                     src_offset += 3
                     out_offset += length
@@ -705,66 +705,73 @@ console.log('header')
         }
     }
 
-    /*_read_next_page() {
+    _read_next_page() {
         this.current_page_data_subheader_pointers = []
         this.cached_page = this._file.read(this.properties.page_length)
-        if this.cached_page.length <= 0:
+        if (this.cached_page.length <= 0) {
             return
+        }
 
-        if this.cached_page.length !== this.properties.page_length:
+        if (this.cached_page.length !== this.properties.page_length) {
             throw new Error(
                 'failed to read complete page from file (read %s of %s bytes)',
                 this.cached_page.length, this.properties.page_length
             )
+        }
         this.header.read_page_header()
-        if this.current_page_type === this.header.PAGE_META_TYPE:
+        if (this.current_page_type === this.header.PAGE_META_TYPE) {
             this.header.process_page_metadata()
-        if this.current_page_type not in [
-            this.header.PAGE_META_TYPE,
-            this.header.PAGE_DATA_TYPE
-        ] + this.header.PAGE_MIX_TYPE:
+        }
+
+        const types = this.header.PAGE_MIX_TYPE.concat(this.header.PAGE_META_TYPE, this.header.PAGE_DATA_TYPE);
+        if (!types.includes(this.current_page_type)) {
             this._read_next_page()
+        }
+    }
 
     _process_byte_array_with_data(offset, length) {
-        row_elements = []
-        if this.properties.compression && length < this.properties.row_length:
-            decompressor = this.DECOMPRESSORS.get(
+        const row_elements = [];
+        let source;
+        if (this.properties.compression && length < this.properties.row_length) {
+            const decompressor = this.DECOMPRESSORS.get(
                 this.properties.compression
             )
-            source = decompressor(this).decompress_row(
+            source = new decompressor(this).decompress_row(
                 offset, length, this.properties.row_length,
                 this.cached_page
             )
             offset = 0
         } else {
             source = this.cached_page
+        }
         for (let i = 0; i < this.properties.column_count; i++) {
-            length = this.column_data_lengths[i]
-            if length === 0:
+            const length = this.column_data_lengths[i]
+            if (length === 0) {
                 break
-            start = offset + this.column_data_offsets[i]
-            end = offset + this.column_data_offsets[i] + length
-            temp = source[start:end]
-            if this.columns[i].type === 'number':
-                if this.column_data_lengths[i] <= 2:
+            }
+            const start = offset + this.column_data_offsets[i]
+            const end = offset + this.column_data_offsets[i] + length
+            const temp = source.slice(start, end);
+            if (this.columns[i].type === 'number') {
+                if (this.column_data_lengths[i] <= 2) {
                     row_elements.push(this._read_val(
                         'h', temp, length
                     ))
                 } else {
-                    fmt = this.columns[i].format
-                    if !fmt:
+                    const fmt = this.columns[i].format
+                    if (!fmt) {
                         row_elements.push(this._read_val(
                             'number', temp, length
                         ))
-                    } else if (fmt in this.TIME_FORMAT_STRINGS:
+                    } else if (fmt in this.TIME_FORMAT_STRINGS) {
                         row_elements.push(this._read_val(
                             'time', temp, length
                         ))
-                    } else if (fmt in this.DATE_TIME_FORMAT_STRINGS:
+                    } else if (fmt in this.DATE_TIME_FORMAT_STRINGS) {
                         row_elements.push(this._read_val(
                             'datetime', temp, length
                         ))
-                    } else if (fmt in this.DATE_FORMAT_STRINGS:
+                    } else if (fmt in this.DATE_FORMAT_STRINGS) {
                         row_elements.push(this._read_val(
                             'date', temp, length
                         ))
@@ -772,13 +779,18 @@ console.log('header')
                         row_elements.push(this._read_val(
                             'number', temp, length
                         ))
+                    }
+                }
             } else { // string
                 row_elements.push(decode(this._read_val(
                     's', temp, length
                 ), this.encoding, this.encoding_errors))
-        return row_elements
+            }
+        }
+        return row_elements;
+    }
 
-    convert_file(out_file, delimiter=',', step_size=100000) {
+/*    convert_file(out_file, delimiter=',', step_size=100000) {
         """
         convert_file(out_file[, delimiter[, step_size]]) -> null
 
@@ -834,7 +846,7 @@ console.log('header')
         """
         import pandas as pd
         data = list(this.readlines())
-        return pd.DataFrame(data[1:], columns=data[0])*/
+        return pd.DataFrame(data.slice(1), columns=data[0])*/
 }
 
 class Column {
