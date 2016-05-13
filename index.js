@@ -3,6 +3,7 @@
 // make sure } catch (err) { } is not hiding actual error
 // encoding_errors - wrap in try/catch to hide errors
 // osteo_analysis_data.sas7bdat
+// options for date formats - ISO, stat transfer, JS
 
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
@@ -30,11 +31,23 @@ class NotImplementedError extends Error {
     }
 }
 
-const datetime = () => {
-    throw new Error('Not implemented!');
-};
-const timedelta = () => {
-    throw new Error('Not implemented!');
+const epoch = new Date('1960-01-01').getTime();
+const datetime = (offsetFromEpoch, units, outputFormat = 'datetime') => {
+    // Convert days to seconds
+    if (units === 'days') {
+        offsetFromEpoch *= 24 * 60 * 60;
+    }
+
+    const d = new Date(epoch + offsetFromEpoch * 1000);
+
+    // Matching the format of StatTransfer
+    if (outputFormat === 'date') {
+        return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+    }
+    if (outputFormat === 'time') {
+        return d.toISOString().slice(11, 19);
+    }
+    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()} ${d.toISOString().slice(11, 19)}`;
 };
 
 const struct_unpack = (fmt, raw_bytes) => {
@@ -406,7 +419,7 @@ class SAS7BDAT {
         };
         this.TIME_FORMAT_STRINGS = ['TIME'];
         this.DATE_TIME_FORMAT_STRINGS = ['DATETIME'];
-        this.DATE_FORMAT_STRINGS = ['YYMMDD', 'MMDDYY', 'DDMMYY', 'DATE', 'JULIAN', 'MONYY'];
+        this.DATE_FORMAT_STRINGS = ['YYMMDD', 'MMDDYY', 'DDMMYY', 'DATE', 'JULIAN', 'MONYY', 'WEEKDATE'];
 
         this.path = path;
         this.endianess = null;
@@ -573,16 +586,17 @@ class SAS7BDAT {
         } else if (Number.isNaN(val)) {
             val = null;
         } else if (fmt === 'datetime') {
-            val = datetime(1960, 1, 1) + timedelta('seconds', val);
+            val = datetime(val, 'seconds');
         } else if (fmt === 'time') {
-            val = (datetime(1960, 1, 1) + timedelta('seconds', val)).time();
+            val = datetime(val, 'seconds', 'time');
         } else if (fmt === 'date') {
-            val = (datetime(1960, 1, 1) + timedelta('days', val)).date();
-/*            if (val === Infinity) {
+            try {
+                val = datetime(val, 'days', 'date');
+            } catch (err) {
                 // Some data sets flagged with a date format are actually
                 // stored as datetime values
-                val = datetime(1960, 1, 1) + timedelta('seconds', val)
-            }*/
+                val = datetime(val, 'seconds');
+            }
         }
 
         return val;
@@ -735,15 +749,15 @@ class SAS7BDAT {
                         row_elements.push(this._read_val(
                             'number', temp, length
                         ));
-                    } else if (fmt in this.TIME_FORMAT_STRINGS) {
+                    } else if (this.TIME_FORMAT_STRINGS.includes(fmt)) {
                         row_elements.push(this._read_val(
                             'time', temp, length
                         ));
-                    } else if (fmt in this.DATE_TIME_FORMAT_STRINGS) {
+                    } else if (this.DATE_TIME_FORMAT_STRINGS.includes(fmt)) {
                         row_elements.push(this._read_val(
                             'datetime', temp, length
                         ));
-                    } else if (fmt in this.DATE_FORMAT_STRINGS) {
+                    } else if (this.DATE_FORMAT_STRINGS.includes(fmt)) {
                         row_elements.push(this._read_val(
                             'date', temp, length
                         ));
@@ -1435,19 +1449,21 @@ class SASHeader {
 
         // Timestamp is epoch 01/01/1960
         try {
-            this.properties.date_created = datetime(1960, 1, 1) + timedelta(
-                'seconds', parent._read_val(
+            this.properties.date_created = datetime(
+                parent._read_val(
                     'd', vals[this.DATE_CREATED_OFFSET + align1],
                     this.DATE_CREATED_LENGTH
-                )
+                ),
+                'seconds'
             );
-        } catch (err) { }
+        } catch (err) {  }
         try {
-            this.properties.date_modified = datetime(1960, 1, 1) + timedelta(
-                'seconds', parent._read_val(
+            this.properties.date_modified = datetime(
+                parent._read_val(
                     'd', vals[this.DATE_MODIFIED_OFFSET + align1],
                     this.DATE_MODIFIED_LENGTH
-                )
+                ),
+                'seconds'
             );
         } catch (err) { }
 

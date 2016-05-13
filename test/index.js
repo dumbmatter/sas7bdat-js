@@ -29,13 +29,15 @@ describe.only('Compare to StatTransfer CSV export', function () {
     const options = {};
 
     for (const filename of sasFilenames) {
-//    for (const filename of ['Final_Candy.sas7bdat']) {
+//    for (const filename of ['datetime.sas7bdat']) {
         it(filename, async () => {
             const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
+//console.log(rows);
 
             const filename2 = filename.replace('sas7bdat', 'csv');
             const csv = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
             const rows2 = await csvParseAsync(csv, options);
+//console.log(rows2);
 
             assert.equal(rows.length, rows2.length);
             for (let i = 0; i < rows.length; i++) {
