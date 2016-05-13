@@ -36,7 +36,7 @@ const timedelta = () => {
     throw new Error('Not implemented!');
 };
 
-const structUnpack = (fmt, raw_bytes) => {
+const struct_unpack = (fmt, raw_bytes) => {
     const endian = fmt[0] === '<' ? 'little' : 'big';
     const letter = fmt[fmt.length - 1];
 
@@ -549,17 +549,14 @@ class SAS7BDAT {
                 size = raw_bytes.length;
             }
             if (size < 8) {
+                const bytes_new = [];
+                for (let i = 0; i < (8 - size); i++) {
+                    bytes_new.push(0x00);
+                }
                 if (this.endianess === 'little') {
-                    const raw_bytes_old = raw_bytes;
-                    raw_bytes = '';
-                    for (let i = 0; i < (8 - size); i++) {
-                        raw_bytes += '\x00';
-                    }
-                    raw_bytes += raw_bytes_old;
+                    raw_bytes = Buffer.concat([Buffer.from(bytes_new), raw_bytes]);
                 } else {
-                    for (let i = 0; i < (8 - size); i++) {
-                        raw_bytes += '\x00';
-                    }
+                    raw_bytes = Buffer.concat([raw_bytes, Buffer.from(bytes_new)]);
                 }
                 size = 8;
             }
@@ -569,7 +566,7 @@ class SAS7BDAT {
         } else {
             newfmt = `<${newfmt}`;
         }
-        let val = structUnpack(newfmt, raw_bytes.slice(0, size));
+        let val = struct_unpack(newfmt, raw_bytes.slice(0, size));
         if (fmt === 's') {
             val = val.replace(/\0/g, '').trim();
         } else if (Number.isNaN(val)) {
@@ -1642,5 +1639,4 @@ SAS7BDAT.parse = filename => {
 };
 
 module.exports = SAS7BDAT;
-
-console.log(SAS7BDAT.parse('test.sas7bdat'));
+//console.log(SAS7BDAT.parse('test.sas7bdat'));
