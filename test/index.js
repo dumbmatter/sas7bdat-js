@@ -23,18 +23,15 @@ describe('Smoke tests', function () {
     }
 });
 
-describe.skip('Compare to StatTransfer CSV export', function () {
+describe.only('Compare to StatTransfer CSV export', function () {
     this.timeout(100000);
 
-    const options = {
-        columns: true
-    };
+    const options = {};
 
-    for (const filename of ['colon.sas7bdat']) {
+    for (const filename of sasFilenames) {
+//    for (const filename of ['Final_Candy.sas7bdat']) {
         it(filename, async () => {
-            const data = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
-            const rows = data.rows;
-console.log(rows[0]);
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
 
             const filename2 = filename.replace('sas7bdat', 'csv');
             const csv = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
