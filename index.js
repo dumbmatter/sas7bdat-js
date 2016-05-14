@@ -4,6 +4,7 @@
 // encoding_errors - wrap in try/catch to hide errors
 // osteo_analysis_data.sas7bdat
 // options for date formats - ISO, stat transfer, JS
+// constructor options
 
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
