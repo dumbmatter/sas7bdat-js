@@ -471,8 +471,8 @@ class SAS7BDAT {
         }
     }
 
-    close() {
-        fs.closeSync(this._file);
+    async close() {
+        await fs_close_aync(this._file);
     }
 
     _make_logger(level = 'info') {
@@ -617,15 +617,13 @@ class SAS7BDAT {
         return new stream.Readable({
             objectMode: true,
             async read() {
-                let row = that.readline();
-                while (this.push(row)) {
-                    row = that.readline();
-                }
+                let row = await that.readline();
+                this.push(row);
             }
         });
     }
 
-    readline() {
+    async readline() {
 console.log('readline');
         const bit_offset = this.header.PAGE_BIT_OFFSET;
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
@@ -636,8 +634,8 @@ console.log('header');
             return this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
         }
         if (!this.cached_page) {
-            fs.seekSync(this._file, this.properties.header_length, 0);
-            this._read_next_page();
+            await fs_seek_async(this._file, this.properties.header_length, 0);
+            await this._read_next_page();
         }
         if (this.current_row_in_file_index < row_count) {
             this.current_row_in_file_index += 1;
@@ -655,11 +653,11 @@ console.log('header');
                         current_subheader_pointer.length
                     );
                     if (this.current_row_on_page_index === this.current_page_data_subheader_pointers.length) {
-                        this._read_next_page();
+                        await this._read_next_page();
                         this.current_row_on_page_index = 0;
                     }
                 } else {
-                    this._read_next_page();
+                    await this._read_next_page();
                     this.current_row_on_page_index = 0;
                 }
             } else if (this.header.PAGE_MIX_TYPE.includes(current_page_type)) {
@@ -690,7 +688,7 @@ console.log('header');
                 }
                 this.current_row_on_page_index += 1;
                 if (this.current_row_on_page_index === Math.min(this.properties.row_count, this.properties.mix_page_row_count)) {
-                    this._read_next_page();
+                    await this._read_next_page();
                     this.current_row_on_page_index = 0;
                 }
             } else if (current_page_type === this.header.PAGE_DATA_TYPE) {
@@ -702,7 +700,7 @@ console.log('header');
                 );
                 this.current_row_on_page_index += 1;
                 if (this.current_row_on_page_index === this.current_page_block_count) {
-                    this._read_next_page();
+                    await this._read_next_page();
                     this.current_row_on_page_index = 0;
                 }
             } else {
@@ -713,10 +711,10 @@ console.log('header');
         return null;
     }
 
-    _read_next_page() {
+    async _read_next_page() {
         this.current_page_data_subheader_pointers = [];
         this.cached_page = Buffer.alloc(this.properties.page_length);
-        const bytesRead = fs.readSync(this._file, this.cached_page, 0, this.properties.page_length, null);
+        const bytesRead = await fs_read_async(this._file, this.cached_page, 0, this.properties.page_length, null);
         if (bytesRead <= 0) {
             return;
         }
@@ -731,7 +729,7 @@ console.log('header');
 
         const types = this.header.PAGE_MIX_TYPE.concat(this.header.PAGE_META_TYPE, this.header.PAGE_DATA_TYPE);
         if (!types.includes(this.current_page_type)) {
-            this._read_next_page();
+            await this._read_next_page();
         }
     }
 
@@ -1678,7 +1676,7 @@ SAS7BDAT.parse = async filename => {
         const rows = [];
         const stream = sas7bdat.create_read_stream();
         stream.on('data', row => {
-            console.log('data', row);
+console.log('data', row);
             rows.push(row);
         });
         stream.on('end', () => {
