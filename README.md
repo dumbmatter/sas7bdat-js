@@ -6,7 +6,7 @@ Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7b
 
 ## Install
 
-...don't do it yet, I'm still not quite done.
+    npm install sas7bdat
 
 ## Use
 

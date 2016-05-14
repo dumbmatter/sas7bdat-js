@@ -613,8 +613,12 @@ class SAS7BDAT {
         return new stream.Readable({
             objectMode: true,
             async read() {
-                const row = await that.readline();
-                this.push(row);
+                try {
+                    const row = await that.readline();
+                    this.push(row);
+                } catch (err) {
+                    this.emit('error', err);
+                }
             }
         });
     }

@@ -54,3 +54,16 @@ describe('Compare to StatTransfer CSV export', function () {
         });
     }
 });
+
+describe('Error handling', async () => {
+    it('Should throw error when file does not exist', async () => {
+        const filename = 'does_not_exist.sas7bdat';
+        try {
+            await sas7bdat.parse(filename);
+            throw new Error('Should not reach here');
+        } catch (err) {
+            assert(err.message.includes('ENOENT'));
+            assert(err.message.includes(filename));
+        }
+    });
+});
