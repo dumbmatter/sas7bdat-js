@@ -444,6 +444,7 @@ class SAS7BDAT {
         this._file = await fs_open_async(this.path, 'r');
         this._open_files.push(this._file);
         this.header = new SASHeader(this);
+        await this.header.parse();
         this.properties = this.header.properties;
         this.header.parse_metadata();
         this.logger.debug(this.header);
@@ -1385,11 +1386,13 @@ class SASHeader {
         this.parent = parent;
         this.properties = new SASProperties();
         this.properties.filename = path.basename(parent.path);
+    }
 
+    async parse() {
         // Check magic number
         let h = Buffer.alloc(288);
-        fs.readSync(parent._file, h, 0, 288, null);
-        parent.cached_page = h;
+        await fs_read_async(this.parent._file, h, 0, 288, null);
+        this.parent.cached_page = h;
         if (h.length < 288) {
             throw new Error('header too short (not a sas7bdat file?)');
         }
@@ -1402,7 +1405,7 @@ class SASHeader {
             [this.ALIGN_1_OFFSET]: this.ALIGN_1_LENGTH,
             [this.ALIGN_2_OFFSET]: this.ALIGN_2_LENGTH
         };
-        const align_vals = parent._read_bytes(offsets_and_lengths);
+        const align_vals = this.parent._read_bytes(offsets_and_lengths);
         if (Buffer.from(this.U64_BYTE_CHECKER_VALUE).equals(align_vals[this.ALIGN_1_OFFSET])) {
             align2 = this.ALIGN_2_VALUE;
             this.properties.u64 = true;
@@ -1427,9 +1430,9 @@ class SASHeader {
             [this.OS_MAKER_OFFSET + total_align]: this.OS_MAKER_LENGTH,
             [this.OS_NAME_OFFSET + total_align]: this.OS_NAME_LENGTH
         };
-        const vals = parent._read_bytes(offsets_and_lengths);
+        const vals = this.parent._read_bytes(offsets_and_lengths);
         this.properties.endianess = vals[this.ENDIANNESS_OFFSET].toString() === '\u0001' ? 'little' : 'big';
-        parent.endianess = this.properties.endianess;
+        this.parent.endianess = this.properties.endianess;
         if (vals[this.PLATFORM_OFFSET].toString() === '1') {
             this.properties.platform = 'unix';
         } else if (vals[this.PLATFORM_OFFSET].toString() === '2') {
@@ -1438,17 +1441,17 @@ class SASHeader {
             this.properties.platform = 'unknown';
         }
 
-        this.properties.name = parent._read_val(
+        this.properties.name = this.parent._read_val(
             's', vals[this.DATASET_OFFSET], this.DATASET_LENGTH
         );
-        this.properties.file_type = parent._read_val(
+        this.properties.file_type = this.parent._read_val(
             's', vals[this.FILE_TYPE_OFFSET], this.FILE_TYPE_LENGTH
         );
 
         // Timestamp is epoch 01/01/1960
         try {
             this.properties.date_created = datetime(
-                parent._read_val(
+                this.parent._read_val(
                     'd', vals[this.DATE_CREATED_OFFSET + align1],
                     this.DATE_CREATED_LENGTH
                 ),
@@ -1457,7 +1460,7 @@ class SASHeader {
         } catch (err) {  }
         try {
             this.properties.date_modified = datetime(
-                parent._read_val(
+                this.parent._read_val(
                     'd', vals[this.DATE_MODIFIED_OFFSET + align1],
                     this.DATE_MODIFIED_LENGTH
                 ),
@@ -1465,53 +1468,53 @@ class SASHeader {
             );
         } catch (err) { }
 
-        this.properties.header_length = parent._read_val(
+        this.properties.header_length = this.parent._read_val(
             'i', vals[this.HEADER_SIZE_OFFSET + align1],
             this.HEADER_SIZE_LENGTH
         );
         if (this.properties.u64 && this.properties.header_length !== 8192) {
-            parent.logger.warning(`header length ${this.properties.header_length} !== 8192`);
+            this.parent.logger.warning(`header length ${this.properties.header_length} !== 8192`);
         }
 
         const tmp = Buffer.alloc(this.properties.header_length - 288);
-        fs.readSync(parent._file, tmp, 0, this.properties.header_length - 288, null);
-        parent.cached_page = Buffer.concat([parent.cached_page, tmp]);
-        h = parent.cached_page;
+        await fs_read_async(this.parent._file, tmp, 0, this.properties.header_length - 288, null);
+        this.parent.cached_page = Buffer.concat([this.parent.cached_page, tmp]);
+        h = this.parent.cached_page;
         if (h.length !== this.properties.header_length) {
             throw new Error('header too short (not a sas7bdat file?)');
         }
-        this.properties.page_length = parent._read_val(
+        this.properties.page_length = this.parent._read_val(
             'i', vals[this.PAGE_SIZE_OFFSET + align1],
             this.PAGE_SIZE_LENGTH
         );
-        this.properties.page_count = parent._read_val(
+        this.properties.page_count = this.parent._read_val(
             'i', vals[this.PAGE_COUNT_OFFSET + align1],
             this.PAGE_COUNT_LENGTH
         );
-        this.properties.sas_release = parent._read_val(
+        this.properties.sas_release = this.parent._read_val(
             's', vals[this.SAS_RELEASE_OFFSET + total_align],
             this.SAS_RELEASE_LENGTH
         );
-        this.properties.server_type = parent._read_val(
+        this.properties.server_type = this.parent._read_val(
             's', vals[this.SAS_SERVER_TYPE_OFFSET + total_align],
             this.SAS_SERVER_TYPE_LENGTH
         );
-        this.properties.os_type = parent._read_val(
+        this.properties.os_type = this.parent._read_val(
             's', vals[this.OS_VERSION_NUMBER_OFFSET + total_align],
             this.OS_VERSION_NUMBER_LENGTH
         );
         if (vals[this.OS_NAME_OFFSET + total_align] !== 0) {
-            this.properties.os_name = parent._read_val(
+            this.properties.os_name = this.parent._read_val(
                 's', vals[this.OS_NAME_OFFSET + total_align],
                 this.OS_NAME_LENGTH
             );
         } else {
-            this.properties.os_name = parent._read_val(
+            this.properties.os_name = this.parent._read_val(
                 's', vals[this.OS_MAKER_OFFSET + total_align],
                 this.OS_MAKER_LENGTH
             );
         }
-        parent.u64 = this.properties.u64;
+        this.parent.u64 = this.properties.u64;
     }
 
     get PAGE_BIT_OFFSET() {
