@@ -16,22 +16,26 @@ class NotImplementedError extends Error {
 }
 
 const epoch = new Date('1960-01-01').getTime();
-const datetime = (offsetFromEpoch, units, outputFormat = 'datetime') => {
+const datetime = (offset_from_epoch, units, date_formatter = null, output_format = 'datetime') => {
+    date_formatter = date_formatter !== null ? date_formatter : (d, output_format) => {
+        // Matching the format of StatTransfer
+        if (output_format === 'date') {
+            return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+        }
+        if (output_format === 'time') {
+            return d.toISOString().slice(11, 19);
+        }
+        return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()} ${d.toISOString().slice(11, 19)}`;
+    };
+
     // Convert days to seconds
     if (units === 'days') {
-        offsetFromEpoch *= 24 * 60 * 60;
+        offset_from_epoch *= 24 * 60 * 60;
     }
 
-    const d = new Date(epoch + offsetFromEpoch * 1000);
+    const d = new Date(epoch + offset_from_epoch * 1000);
 
-    // Matching the format of StatTransfer
-    if (outputFormat === 'date') {
-        return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
-    }
-    if (outputFormat === 'time') {
-        return d.toISOString().slice(11, 19);
-    }
-    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()} ${d.toISOString().slice(11, 19)}`;
+    return date_formatter(d, output_format);
 };
 
 const struct_unpack = (fmt, raw_bytes) => {
@@ -394,7 +398,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true) {
+    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, date_formatter = null} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -421,6 +425,7 @@ class SAS7BDAT {
         this.encoding = encoding;
         this.encoding_errors = encoding_errors;
         this.align_correction = align_correction;
+        this.date_formatter = date_formatter;
         this._file = null;
         this.cached_page = null;
         this.current_page_type = null;
@@ -585,16 +590,16 @@ class SAS7BDAT {
         } else if (Number.isNaN(val)) {
             val = null;
         } else if (fmt === 'datetime') {
-            val = datetime(val, 'seconds');
+            val = datetime(val, 'seconds', this.date_formatter);
         } else if (fmt === 'time') {
-            val = datetime(val, 'seconds', 'time');
+            val = datetime(val, 'seconds', this.date_formatter, 'time');
         } else if (fmt === 'date') {
             try {
-                val = datetime(val, 'days', 'date');
+                val = datetime(val, 'days', this.date_formatter, 'date');
             } catch (err) {
                 // Some data sets flagged with a date format are actually
                 // stored as datetime values
-                val = datetime(val, 'seconds');
+                val = datetime(val, 'seconds', this.date_formatter);
             }
         }
 
@@ -1475,7 +1480,8 @@ class SASHeader {
                     'd', vals[this.DATE_CREATED_OFFSET + align1],
                     this.DATE_CREATED_LENGTH
                 ),
-                'seconds'
+                'seconds',
+                this.date_formatter
             );
         } catch (err) {} // eslint-disable-line no-empty
         try {
@@ -1484,7 +1490,8 @@ class SASHeader {
                     'd', vals[this.DATE_MODIFIED_OFFSET + align1],
                     this.DATE_MODIFIED_LENGTH
                 ),
-                'seconds'
+                'seconds',
+                this.date_formatter
             );
         } catch (err) {} // eslint-disable-line no-empty
 
