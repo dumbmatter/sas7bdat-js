@@ -1,4 +1,4 @@
-# sas7bdat-js
+# sas7bdat-js [![Build Status](https://travis-ci.org/dumbmatter/sas7bdat-js.svg?branch=master)](https://travis-ci.org/dumbmatter/sas7bdat-js)
 
 Read SAS files in JavaScript. Because you always wanted to do that, right?
 
