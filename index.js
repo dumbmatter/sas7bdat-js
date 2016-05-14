@@ -4,6 +4,7 @@
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
 const path = require('path');
+const stream = require('stream');
 
 const fs_close_async = denodeify(fs.close);
 const fs_open_async = denodeify(fs.open);
@@ -439,6 +440,9 @@ class SAS7BDAT {
         this.columns = [];
         this.header = null;
         this.properties = null;
+        this.sent_header = false;
+        this.current_row_in_file_index = 0;
+        this.current_row_on_page_index = 0;
     }
 
     async parse_header() {
@@ -608,26 +612,40 @@ class SAS7BDAT {
     Possible values in the list are null, string, float, datetime.datetime,
     datetime.date, and datetime.time.
     */
-    * [Symbol.iterator]() {
+    create_read_stream() {
+        const that = this;
+        return new stream.Readable({
+            objectMode: true,
+            async read() {
+                let row = that.readline();
+                while (this.push(row)) {
+                    row = that.readline();
+                }
+            }
+        });
+    }
+
+    readline() {
+console.log('readline');
         const bit_offset = this.header.PAGE_BIT_OFFSET;
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
         const row_count = this.header.properties.row_count;
-        let current_row_in_file_index = 0;
-        let current_row_on_page_index = 0;
-        if (!this.skip_header) {
-            yield this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
+        if (!this.skip_header && !this.sent_header) {
+            this.sent_header = true;
+console.log('header');
+            return this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
         }
         if (!this.cached_page) {
             fs.seekSync(this._file, this.properties.header_length, 0);
             this._read_next_page();
         }
-        while (current_row_in_file_index < row_count) {
-            current_row_in_file_index += 1;
+        if (this.current_row_in_file_index < row_count) {
+            this.current_row_in_file_index += 1;
             const current_page_type = this.current_page_type;
             if (current_page_type === this.header.PAGE_META_TYPE) {
-                if (current_row_on_page_index < this.current_page_data_subheader_pointers.length && current_row_on_page_index >= 0) {
-                    const current_subheader_pointer = this.current_page_data_subheader_pointers[current_row_on_page_index];
-                    current_row_on_page_index += 1;
+                if (this.current_row_on_page_index < this.current_page_data_subheader_pointers.length && this.current_row_on_page_index >= 0) {
+                    const current_subheader_pointer = this.current_page_data_subheader_pointers[this.current_row_on_page_index];
+                    this.current_row_on_page_index += 1;
                     const Cls = this.header.SUBHEADER_INDEX_TO_CLASS[this.header.DATA_SUBHEADER_INDEX];
                     if (Cls === undefined) {
                         throw new NotImplementedError();
@@ -636,13 +654,13 @@ class SAS7BDAT {
                         current_subheader_pointer.offset,
                         current_subheader_pointer.length
                     );
-                    if (current_row_on_page_index === this.current_page_data_subheader_pointers.length) {
+                    if (this.current_row_on_page_index === this.current_page_data_subheader_pointers.length) {
                         this._read_next_page();
-                        current_row_on_page_index = 0;
+                        this.current_row_on_page_index = 0;
                     }
                 } else {
                     this._read_next_page();
-                    current_row_on_page_index = 0;
+                    this.current_row_on_page_index = 0;
                 }
             } else if (this.header.PAGE_MIX_TYPE.includes(current_page_type)) {
                 let align_correction;
@@ -658,7 +676,7 @@ class SAS7BDAT {
                 const offset = (
                     bit_offset + this.header.SUBHEADER_POINTERS_OFFSET +
                     align_correction + this.current_page_subheaders_count *
-                    subheader_pointer_length + current_row_on_page_index *
+                    subheader_pointer_length + this.current_row_on_page_index *
                     this.properties.row_length
                 );
                 try {
@@ -670,28 +688,29 @@ class SAS7BDAT {
                     console.log(`failed to process data (you might want to try passing align_correction=${!this.align_correction} to the SAS7BDAT constructor)`);
                     throw err;
                 }
-                current_row_on_page_index += 1;
-                if (current_row_on_page_index === Math.min(this.properties.row_count, this.properties.mix_page_row_count)) {
+                this.current_row_on_page_index += 1;
+                if (this.current_row_on_page_index === Math.min(this.properties.row_count, this.properties.mix_page_row_count)) {
                     this._read_next_page();
-                    current_row_on_page_index = 0;
+                    this.current_row_on_page_index = 0;
                 }
             } else if (current_page_type === this.header.PAGE_DATA_TYPE) {
                 this.current_row = this._process_byte_array_with_data(
                     bit_offset + this.header.SUBHEADER_POINTERS_OFFSET +
-                    current_row_on_page_index *
+                    this.current_row_on_page_index *
                     this.properties.row_length,
                     this.properties.row_length
                 );
-                current_row_on_page_index += 1;
-                if (current_row_on_page_index === this.current_page_block_count) {
+                this.current_row_on_page_index += 1;
+                if (this.current_row_on_page_index === this.current_page_block_count) {
                     this._read_next_page();
-                    current_row_on_page_index = 0;
+                    this.current_row_on_page_index = 0;
                 }
             } else {
                 throw new Error(`unknown page type: ${current_page_type}`);
             }
-            yield this.current_row;
+            return this.current_row;
         }
+        return null;
     }
 
     _read_next_page() {
@@ -1655,8 +1674,27 @@ SAS7BDAT.parse = async filename => {
     const sas7bdat = new SAS7BDAT(filename);
     await sas7bdat.parse_header();
 
-    return Array.from(sas7bdat);
+    return new Promise((resolve, reject) => {
+        const rows = [];
+        const stream = sas7bdat.create_read_stream();
+        stream.on('data', row => {
+            console.log('data', row);
+            rows.push(row);
+        });
+        stream.on('end', () => {
+            console.log('end');
+            resolve(rows);
+        });
+        stream.on('error', err => {
+            console.log('error');
+            reject(err);
+        });
+    });
 };
 
 module.exports = SAS7BDAT;
-//console.log(SAS7BDAT.parse('test.sas7bdat'));
+
+console.log('hi');
+SAS7BDAT.parse('test.sas7bdat')
+    .then(rows => console.log('rows', rows.length))
+    .catch(err => console.log(err));
