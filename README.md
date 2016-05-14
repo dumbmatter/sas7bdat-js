@@ -2,7 +2,11 @@
 
 Read SAS files in JavaScript. Because you always wanted to do that, right?
 
-Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7bdat).
+Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7bdat). All functionality should be the same, except sas7bdat-js does not support compression yet.
+
+## Install
+
+    npm install sas7bdat
 
 ## Use
 
@@ -25,6 +29,18 @@ Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7b
             stream.on('error', err => console.log(err));
         })
         .catch(err => console.log(err));
+
+## Options
+
+...coming soon. Options will include:
+
+- Formatting of parsed dates
+- Whether you want arrays or objects returned for rows
+- All the options of the original Python package
+
+## Tests
+
+    npm test
 
 ## Similar open source projects for other languages
 

@@ -1,7 +1,3 @@
-// options for date formats - ISO, stat transfer, JS
-// constructor options
-// option for object mode (anything else from fs.createReadStream or csv prase)
-
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
 const path = require('path');
@@ -473,7 +469,7 @@ class SAS7BDAT {
     }
 
     async close() {
-        await fs_close_aync(this._file);
+        await fs_close_async(this._file);
     }
 
     _make_logger(level = 'info') {
@@ -620,7 +616,7 @@ class SAS7BDAT {
         return new stream.Readable({
             objectMode: true,
             async read() {
-                let row = await that.readline();
+                const row = await that.readline();
                 this.push(row);
             }
         });
@@ -1476,7 +1472,7 @@ class SASHeader {
                 ),
                 'seconds'
             );
-        } catch (err) {  }
+        } catch (err) {} // eslint-disable-line no-empty
         try {
             this.properties.date_modified = datetime(
                 this.parent._read_val(
@@ -1485,7 +1481,7 @@ class SASHeader {
                 ),
                 'seconds'
             );
-        } catch (err) { }
+        } catch (err) {} // eslint-disable-line no-empty
 
         this.properties.header_length = this.parent._read_val(
             'i', vals[this.HEADER_SIZE_OFFSET + align1],
@@ -1688,13 +1684,3 @@ SAS7BDAT.parse = async filename => {
 };
 
 module.exports = SAS7BDAT;
-
-SAS7BDAT.parse('test.sas7bdat')
-    .then(rows => console.log('rows', rows))
-    .catch(err => console.log(err));
-
-
-
-SAS7BDAT.parse('test.sas7bdat')
-    .then(rows => console.log('rows', rows.length))
-    .catch(err => console.log(err));

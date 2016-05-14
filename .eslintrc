@@ -1,11 +1,9 @@
 {
     "parser": "babel-eslint",
     "env": {
-        "browser": false,
-        "node": true,
-        "amd": false,
+        "es6": true,
         "mocha": true,
-        "jasmine": false
+        "node": true
    },
     "rules": {
         "no-alert": "off",
