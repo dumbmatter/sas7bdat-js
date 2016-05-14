@@ -1,5 +1,6 @@
 // options for date formats - ISO, stat transfer, JS
 // constructor options
+// option for object mode (anything else from fs.createReadStream or csv prase)
 
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
@@ -513,7 +514,7 @@ class SAS7BDAT {
         };
     }
 
-    _read_bytes(offsets_to_lengths) {
+    async _read_bytes(offsets_to_lengths) {
         const result = {};
         if (!this.cached_page) {
             for (let offset of Object.keys(offsets_to_lengths)) {
@@ -523,10 +524,10 @@ class SAS7BDAT {
                 while (skipped < (offset - this.current_file_position)) {
                     const seek = offset - this.current_file_position - skipped;
                     skipped += seek;
-                    fs.seekSync(this._file, seek, 0);
+                    fs_seek_async(this._file, seek, 0);
                 }
                 const tmp = Buffer.alloc(length);
-                fs.readSync(this._file, tmp, 0, length, null);
+                await fs_read_async(this._file, tmp, 0, length, null);
                 if (tmp.length < length) {
                     throw new Error(`failed to read ${length} bytes from sas7bdat file`);
                 }
@@ -612,7 +613,9 @@ class SAS7BDAT {
     Possible values in the list are null, string, float, datetime.datetime,
     datetime.date, and datetime.time.
     */
-    create_read_stream() {
+    async create_read_stream() {
+        await this.parse_header();
+
         const that = this;
         return new stream.Readable({
             objectMode: true,
@@ -624,13 +627,11 @@ class SAS7BDAT {
     }
 
     async readline() {
-console.log('readline');
         const bit_offset = this.header.PAGE_BIT_OFFSET;
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
         const row_count = this.header.properties.row_count;
         if (!this.skip_header && !this.sent_header) {
             this.sent_header = true;
-console.log('header');
             return this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
         }
         if (!this.cached_page) {
@@ -648,7 +649,8 @@ console.log('header');
                     if (Cls === undefined) {
                         throw new NotImplementedError();
                     }
-                    new Cls(this).process_subheader(
+                    const cls = new Cls(this);
+                    await cls.process_subheader(
                         current_subheader_pointer.offset,
                         current_subheader_pointer.length
                     );
@@ -722,9 +724,9 @@ console.log('header');
         if (this.cached_page.length !== this.properties.page_length) {
             throw new Error(`failed to read complete page from file (read ${this.cached_page.length} of ${this.properties.page_length} bytes)`);
         }
-        this.header.read_page_header();
+        await this.header.read_page_header();
         if (this.current_page_type === this.header.PAGE_META_TYPE) {
-            this.header.process_page_metadata();
+            await this.header.process_page_metadata();
         }
 
         const types = this.header.PAGE_MIX_TYPE.concat(this.header.PAGE_META_TYPE, this.header.PAGE_DATA_TYPE);
@@ -912,18 +914,18 @@ class ProcessingSubheader {
         this.int_length = this.properties.u64 ? 8 : 4;
     }
 
-    process_subheader() {
+    async process_subheader() {
         throw new NotImplementedError();
     }
 }
 
 
 class RowSizeSubheader extends ProcessingSubheader {
-    process_subheader(offset) {
+    async process_subheader(offset) {
         const int_len = this.int_length;
         const lcs = offset + (this.properties.u64 ? 682 : 354);
         const lcp = offset + (this.properties.u64 ? 706 : 378);
-        const vals = this.parent._read_bytes({
+        const vals = await this.parent._read_bytes({
             [offset + this.ROW_LENGTH_OFFSET_MULTIPLIER * int_len]: int_len,
             [offset + this.ROW_COUNT_OFFSET_MULTIPLIER * int_len]: int_len,
             [offset + this.ROW_COUNT_ON_MIX_PAGE_OFFSET_MULTIPLIER * int_len]:
@@ -980,9 +982,9 @@ class RowSizeSubheader extends ProcessingSubheader {
 }
 
 class ColumnSizeSubheader extends ProcessingSubheader {
-    process_subheader(offset) {
+    async process_subheader(offset) {
         offset += this.int_length;
-        const vals = this.parent._read_bytes({
+        const vals = await this.parent._read_bytes({
             [offset]: this.int_length
         });
         if (this.properties.column_count !== null) {
@@ -999,23 +1001,23 @@ class ColumnSizeSubheader extends ProcessingSubheader {
 
 
 class SubheaderCountsSubheader extends ProcessingSubheader {
-    process_subheader() {
+    async process_subheader() {
         return; // Not sure what to do here yet
     }
 }
 
 
 class ColumnTextSubheader extends ProcessingSubheader {
-    process_subheader(offset) {
+    async process_subheader(offset) {
         offset += this.int_length;
-        let vals = this.parent._read_bytes({
+        let vals = await this.parent._read_bytes({
             [offset]: this.TEXT_BLOCK_SIZE_LENGTH
         });
         const text_block_size = this.parent._read_val(
             'h', vals[offset], this.TEXT_BLOCK_SIZE_LENGTH
         );
 
-        vals = this.parent._read_bytes({
+        vals = await this.parent._read_bytes({
             [offset]: text_block_size
         });
         this.parent.column_names_strings.push(vals[offset]);
@@ -1030,7 +1032,7 @@ class ColumnTextSubheader extends ProcessingSubheader {
             }
             this.properties.compression = compression_literal;
             offset -= this.int_length;
-            vals = this.parent._read_bytes({
+            vals = await this.parent._read_bytes({
                 [offset + (this.properties.u64 ? 20 : 16)]: 8
             });
             compression_literal = this.parent._read_val(
@@ -1040,7 +1042,7 @@ class ColumnTextSubheader extends ProcessingSubheader {
             ).trim();
             if (compression_literal === '') {
                 this.properties.lcs = 0;
-                vals = this.parent._read_bytes({
+                vals = await this.parent._read_bytes({
                     [offset + 16 + (this.properties.u64 ? 20 : 16)]: this.properties.lcp
                 });
                 const creatorproc = this.parent._read_val(
@@ -1050,7 +1052,7 @@ class ColumnTextSubheader extends ProcessingSubheader {
                 );
                 this.properties.creator_proc = creatorproc;
             } else if (compression_literal === SAS7BDAT.RLE_COMPRESSION) {
-                vals = this.parent._read_bytes({
+                vals = await this.parent._read_bytes({
                     [offset + 24 + (this.properties.u64 ? 20 : 16)]: this.properties.lcp
                 });
                 const creatorproc = this.parent._read_val(
@@ -1061,7 +1063,7 @@ class ColumnTextSubheader extends ProcessingSubheader {
                 this.properties.creator_proc = creatorproc;
             } else if (this.properties.lcs > 0) {
                 this.properties.lcp = 0;
-                vals = this.parent._read_bytes({
+                vals = await this.parent._read_bytes({
                     [offset + (this.properties.u64 ? 20 : 16)]: this.properties.lcs
                 });
                 const creator = this.parent._read_val(
@@ -1076,7 +1078,7 @@ class ColumnTextSubheader extends ProcessingSubheader {
 }
 
 class ColumnNameSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    async process_subheader(offset, length) {
         offset += this.int_length;
         const column_name_pointers_count = Math.floor((length - 2 * this.int_length - 12) / 8);
         for (let i = 0; i < column_name_pointers_count; i++) {
@@ -1092,7 +1094,7 @@ class ColumnNameSubheader extends ProcessingSubheader {
                 offset + this.COLUMN_NAME_POINTER_LENGTH * (i + 1) +
                 this.COLUMN_NAME_LENGTH_OFFSET
             );
-            const vals = this.parent._read_bytes({
+            const vals = await this.parent._read_bytes({
                 [text_subheader]: this.COLUMN_NAME_TEXT_SUBHEADER_LENGTH,
                 [col_name_offset]: this.COLUMN_NAME_OFFSET_LENGTH,
                 [col_name_length]: this.COLUMN_NAME_LENGTH_LENGTH
@@ -1120,7 +1122,7 @@ class ColumnNameSubheader extends ProcessingSubheader {
 
 
 class ColumnAttributesSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    async process_subheader(offset, length) {
         const int_len = this.int_length;
         const column_attributes_vectors_count = (
             Math.floor((length - 2 * int_len - 12) / (int_len + 8))
@@ -1138,7 +1140,7 @@ class ColumnAttributesSubheader extends ProcessingSubheader {
                 offset + 2 * int_len + this.COLUMN_TYPE_OFFSET + i *
                 (int_len + 8)
             );
-            const vals = this.parent._read_bytes({
+            const vals = await this.parent._read_bytes({
                 [col_data_offset]: int_len,
                 [col_data_len]: this.COLUMN_DATA_LENGTH_LENGTH,
                 [col_types]: this.COLUMN_TYPE_LENGTH
@@ -1160,7 +1162,7 @@ class ColumnAttributesSubheader extends ProcessingSubheader {
 }
 
 class FormatAndLabelSubheader extends ProcessingSubheader {
-    process_subheader(offset) {
+    async process_subheader(offset) {
         const int_len = this.int_length;
         const text_subheader_format = (
             offset + this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_OFFSET + 3 *
@@ -1182,7 +1184,7 @@ class FormatAndLabelSubheader extends ProcessingSubheader {
         const col_label_len = (
             offset + this.COLUMN_LABEL_LENGTH_OFFSET + 3 * int_len
         );
-        const vals = this.parent._read_bytes({
+        const vals = await this.parent._read_bytes({
             [text_subheader_format]: this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_LENGTH,
             [col_format_offset]: this.COLUMN_FORMAT_OFFSET_LENGTH,
             [col_format_len]: this.COLUMN_FORMAT_LENGTH_LENGTH,
@@ -1241,13 +1243,13 @@ class FormatAndLabelSubheader extends ProcessingSubheader {
 }
 
 class ColumnListSubheader extends ProcessingSubheader {
-    process_subheader() {
+    async process_subheader() {
         return; // Not sure what to do with this yet
     }
 }
 
 class DataSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    async process_subheader(offset, length) {
         this.parent.current_row = this.parent._process_byte_array_with_data(
             offset, length
         );
@@ -1422,7 +1424,7 @@ class SASHeader {
             [this.ALIGN_1_OFFSET]: this.ALIGN_1_LENGTH,
             [this.ALIGN_2_OFFSET]: this.ALIGN_2_LENGTH
         };
-        const align_vals = this.parent._read_bytes(offsets_and_lengths);
+        const align_vals = await this.parent._read_bytes(offsets_and_lengths);
         if (Buffer.from(this.U64_BYTE_CHECKER_VALUE).equals(align_vals[this.ALIGN_1_OFFSET])) {
             align2 = this.ALIGN_2_VALUE;
             this.properties.u64 = true;
@@ -1447,7 +1449,7 @@ class SASHeader {
             [this.OS_MAKER_OFFSET + total_align]: this.OS_MAKER_LENGTH,
             [this.OS_NAME_OFFSET + total_align]: this.OS_NAME_LENGTH
         };
-        const vals = this.parent._read_bytes(offsets_and_lengths);
+        const vals = await this.parent._read_bytes(offsets_and_lengths);
         this.properties.endianess = vals[this.ENDIANNESS_OFFSET].toString() === '\u0001' ? 'little' : 'big';
         this.parent.endianess = this.properties.endianess;
         if (vals[this.PLATFORM_OFFSET].toString() === '1') {
@@ -1557,13 +1559,13 @@ class SASHeader {
             if (this.parent.cached_page.length !== this.properties.page_length) {
                 throw new Error('Failed to read a meta data page from file');
             }
-            done = this.process_page_meta();
+            done = await this.process_page_meta();
         }
     }
 
-    read_page_header() {
+    async read_page_header() {
         const bit_offset = this.PAGE_BIT_OFFSET;
-        const vals = this.parent._read_bytes({
+        const vals = await this.parent._read_bytes({
             [this.PAGE_TYPE_OFFSET + bit_offset]: this.PAGE_TYPE_LENGTH,
             [this.BLOCK_COUNT_OFFSET + bit_offset]: this.BLOCK_COUNT_LENGTH,
             [this.SUBHEADER_COUNT_OFFSET + bit_offset]: this.SUBHEADER_COUNT_LENGTH
@@ -1583,24 +1585,24 @@ class SASHeader {
         );
     }
 
-    process_page_meta() {
-        this.read_page_header();
+    async process_page_meta() {
+        await this.read_page_header();
         if (this.PAGE_META_MIX_AMD.includes(this.parent.current_page_type)) {
-            this.process_page_metadata();
+            await this.process_page_metadata();
         }
         return this.PAGE_MIX_DATA_TYPE.includes(this.parent.current_page_type) || this.parent.current_page_data_subheader_pointers.length > 0;
     }
 
-    process_page_metadata() {
+    async process_page_metadata() {
         const parent = this.parent;
         const bit_offset = this.PAGE_BIT_OFFSET;
         for (let i = 0; i < parent.current_page_subheaders_count; i++) {
-            const pointer = this.process_subheader_pointers(this.SUBHEADER_POINTERS_OFFSET + bit_offset, i);
+            const pointer = await this.process_subheader_pointers(this.SUBHEADER_POINTERS_OFFSET + bit_offset, i);
             if (!pointer.length) {
                 continue;
             }
             if (pointer.compression !== this.TRUNCATED_SUBHEADER_ID) {
-                const subheader_signature = this.read_subheader_signature(pointer.offset);
+                const subheader_signature = await this.read_subheader_signature(pointer.offset);
                 const subheader_index = this.get_subheader_class(subheader_signature, pointer.compression, pointer.type);
                 if (subheader_index !== undefined) {
                     if (subheader_index !== this.DATA_SUBHEADER_INDEX) {
@@ -1608,7 +1610,8 @@ class SASHeader {
                         if (Cls === undefined) {
                             throw new NotImplementedError();
                         }
-                        new Cls(parent).process_subheader(pointer.offset, pointer.length);
+                        const cls = new Cls(parent);
+                        await cls.process_subheader(pointer.offset, pointer.length);
                     } else {
                         parent.current_page_data_subheader_pointers.push(pointer);
                     }
@@ -1619,9 +1622,10 @@ class SASHeader {
         }
     }
 
-    read_subheader_signature(offset) {
+    async read_subheader_signature(offset) {
         const length = this.properties.u64 ? 8 : 4;
-        return this.parent._read_bytes({[offset]: length})[offset];
+        const result = await this.parent._read_bytes({[offset]: length});
+        return result[offset];
     }
 
     get_subheader_class(signature, compression, type) {
@@ -1632,11 +1636,11 @@ class SASHeader {
         return index;
     }
 
-    process_subheader_pointers(offset, subheader_pointer_index) {
+    async process_subheader_pointers(offset, subheader_pointer_index) {
         const length = this.properties.u64 ? 8 : 4;
         const subheader_pointer_length = this.SUBHEADER_POINTER_LENGTH;
         const total_offset = offset + subheader_pointer_length * subheader_pointer_index;
-        const vals = this.parent._read_bytes({
+        const vals = await this.parent._read_bytes({
             [total_offset]: length,
             [total_offset + length]: length,
             [total_offset + 2 * length]: 1,
@@ -1668,31 +1672,29 @@ const cleanUp = async () => {
 
 process.on('exit', () => cleanUp());
 
-SAS7BDAT.parse = async filename => {
+SAS7BDAT.createReadStream = async filename => {
     const sas7bdat = new SAS7BDAT(filename);
-    await sas7bdat.parse_header();
+    return await sas7bdat.create_read_stream();
+};
 
-    return new Promise((resolve, reject) => {
+SAS7BDAT.parse = async filename => {
+    return new Promise(async (resolve, reject) => {
         const rows = [];
-        const stream = sas7bdat.create_read_stream();
-        stream.on('data', row => {
-console.log('data', row);
-            rows.push(row);
-        });
-        stream.on('end', () => {
-            console.log('end');
-            resolve(rows);
-        });
-        stream.on('error', err => {
-            console.log('error');
-            reject(err);
-        });
+        const stream = await SAS7BDAT.createReadStream(filename);
+        stream.on('data', row => rows.push(row));
+        stream.on('end', () => resolve(rows));
+        stream.on('error', err => reject(err));
     });
 };
 
 module.exports = SAS7BDAT;
 
-console.log('hi');
+SAS7BDAT.parse('test.sas7bdat')
+    .then(rows => console.log('rows', rows))
+    .catch(err => console.log(err));
+
+
+
 SAS7BDAT.parse('test.sas7bdat')
     .then(rows => console.log('rows', rows.length))
     .catch(err => console.log(err));
