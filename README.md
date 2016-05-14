@@ -113,6 +113,8 @@ A string containing the character encoding of strings in the file, default is `'
 
 ### `options.alignCorrection`
 
+Boolean, default `true`. I'm not totally sure what this does, it came along with the port from Python. If it's needed, it'll hopefully produce an error message telling you that.
+
 ### `options.logLevel`
 
 ## Tests

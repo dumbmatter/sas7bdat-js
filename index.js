@@ -380,16 +380,6 @@ class RDCDecompressor extends Decompressor {
                 }
         return b''.join([c(x) for x in out_row])*/
 
-/*SAS7BDAT(path[, log_level[, extra_time_format_strings[, \
-extra_date_time_format_strings[, extra_date_format_strings]]]]) -> \
-SAS7BDAT object
-
-Open a SAS7BDAT file. The log level are standard logging levels
-(defaults to logging.INFO).
-
-If your sas7bdat file uses non-standard format strings for time, datetime,
-or date values, pass those strings into the constructor using the
-appropriate kwarg.*/
 class SAS7BDAT {
     constructor(path, {logLevel = 'info', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this._open_files = [];
@@ -680,7 +670,7 @@ class SAS7BDAT {
                         this.properties.row_length
                     );
                 } catch (err) {
-                    console.log(`failed to process data (you might want to try passing align_correction=${!this.align_correction} to the SAS7BDAT constructor)`);
+                    console.log(`failed to process data (you might want to try passing alignCorrection=${!this.align_correction} to the SAS7BDAT constructor)`);
                     throw err;
                 }
                 this.current_row_on_page_index += 1;
