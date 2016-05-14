@@ -5,9 +5,10 @@ const denodeify = require('denodeify');
 const fs = require('fs-ext');
 const path = require('path');
 
+const fs_close_async = denodeify(fs.close);
 const fs_open_async = denodeify(fs.open);
 const fs_read_async = denodeify(fs.read);
-const fs_close_async = denodeify(fs.close);
+const fs_seek_async = denodeify(fs.seek);
 
 class NotImplementedError extends Error {
     constructor(message) {
@@ -446,7 +447,7 @@ class SAS7BDAT {
         this.header = new SASHeader(this);
         await this.header.parse();
         this.properties = this.header.properties;
-        this.header.parse_metadata();
+        await this.header.parse_metadata();
         this.logger.debug(this.header);
 
         return this.properties;
@@ -522,7 +523,6 @@ class SAS7BDAT {
                 }
                 const tmp = Buffer.alloc(length);
                 fs.readSync(this._file, tmp, 0, length, null);
-//                tmp = this._file.read(length)
                 if (tmp.length < length) {
                     throw new Error(`failed to read ${length} bytes from sas7bdat file`);
                 }
@@ -1529,11 +1529,11 @@ class SASHeader {
         return this.MAGIC.equals(header.slice(0, this.MAGIC.length));
     }
 
-    parse_metadata() {
+    async parse_metadata() {
         let done = false;
         while (!done) {
             this.parent.cached_page = Buffer.alloc(this.properties.page_length);
-            fs.readSync(this.parent._file, this.parent.cached_page, 0, this.properties.page_length, null);
+            await fs_read_async(this.parent._file, this.parent.cached_page, 0, this.properties.page_length, null);
             if (this.parent.cached_page.length <= 0) {
                 break;
             }
