@@ -24,7 +24,7 @@ Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7b
 
     const stream = SAS7BDAT.createReadStream('test.sas7bdat');
     stream.on('data', row => console.log(row));
-    stream.on('end', () => console.log(`Got ${rows.length} rows`));
+    stream.on('end', () => console.log('Done!'));
     stream.on('error', err => console.log(err));
 
 ## Options
