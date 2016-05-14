@@ -1,8 +1,3 @@
-// anything starting wtih \x needs to be updated
-// confirm output of _read_bytes (buffer) is being compared correctly
-// make sure } catch (err) { } is not hiding actual error
-// encoding_errors - wrap in try/catch to hide errors
-// osteo_analysis_data.sas7bdat
 // options for date formats - ISO, stat transfer, JS
 // constructor options
 
@@ -13,17 +8,6 @@ const path = require('path');
 const fs_open_async = denodeify(fs.open);
 const fs_read_async = denodeify(fs.read);
 const fs_close_async = denodeify(fs.close);
-
-const logging = {
-    INFO: 'INFO'
-};
-
-class ParseError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'ParseError';
-    }
-}
 
 class NotImplementedError extends Error {
     constructor(message) {
@@ -88,9 +72,14 @@ const struct_unpack = (fmt, raw_bytes) => {
     }
 };
 
-// Could use encoding_errors... not sure what the implication would be though
 const decode = (name, encoding, encoding_errors) => {
-    return name.toString(encoding);
+    try {
+        return name.toString(encoding);
+    } catch (err) {
+        if (encoding_errors !== 'ignore') {
+            throw err;
+        }
+    }
 };
 
 
@@ -406,7 +395,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, log_level=logging.INFO, extra_time_format_strings=null, extra_date_time_format_strings=null,  extra_date_format_strings=null, skip_header=false, encoding='utf8', encoding_errors='ignore', align_correction=true) {
+    constructor(path, log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null,  extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -472,7 +461,7 @@ class SAS7BDAT {
         fs.closeSync(this._file);
     }
 
-    _make_logger(level = logging.INFO) {
+    _make_logger(level = 'info') {
 /*        logger = logging.getLogger(this.path)
         logger.setLevel(level)
         fmt = '%(message)s'

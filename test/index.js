@@ -15,7 +15,8 @@ const assertCloseEnough = (x, y) => {
     }
 };
 
-// Smoke tests - run on various data files and see if there is an error
+// Smoke tests - run on various data files and see if there is an error.
+// Kind of redundant with the StatTransfer tests below...
 describe.skip('Smoke tests', function () {
     this.timeout(100000);
     for (const filename of sasFilenames) {
