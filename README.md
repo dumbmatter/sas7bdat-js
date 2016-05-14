@@ -111,8 +111,6 @@ A string containing the character encoding of strings in the file, default is `'
 * `'binary'` - A way of encoding the buffer into a one-byte (`latin-1`) encoded string. The string `'latin-1'` is not supported. Instead, pass `'binary'` to use `'latin-1'` encoding.
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-### `options.encodingErrors`
-
 ### `options.alignCorrection`
 
 ### `options.logLevel`

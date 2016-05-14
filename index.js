@@ -74,14 +74,8 @@ const struct_unpack = (fmt, raw_bytes) => {
     }
 };
 
-const decode = (name, encoding, encoding_errors) => {
-    try {
-        return name.toString(encoding);
-    } catch (err) {
-        if (encoding_errors !== 'ignore') {
-            throw err;
-        }
-    }
+const decode = (buf, encoding) => {
+    return buf.toString(encoding);
 };
 
 
@@ -397,7 +391,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, {logLevel = 'info', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', encodingErrors = 'ignore', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
+    constructor(path, {logLevel = 'info', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -422,7 +416,6 @@ class SAS7BDAT {
         this._update_format_strings(this.DATE_FORMAT_STRINGS, extraDateFormatStrings);
         this.skip_header = skipHeader;
         this.encoding = encoding;
-        this.encoding_errors = encodingErrors;
         this.align_correction = alignCorrection;
         this.date_formatter = dateFormatter;
         this.row_format = rowFormat;
@@ -630,7 +623,7 @@ class SAS7BDAT {
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
         const row_count = this.header.properties.row_count;
         if (!this.column_names_strings_decoded) {
-            this.column_names_strings_decoded = this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
+            this.column_names_strings_decoded = this.columns.map(x => decode(x.name, this.encoding));
         }
         if (!this.skip_header && !this.sent_header && this.row_format === 'array') {
             this.sent_header = true;
@@ -797,7 +790,7 @@ class SAS7BDAT {
             } else { // string
                 row_elements.push(decode(this._read_val(
                     's', temp, length
-                ), this.encoding, this.encoding_errors));
+                ), this.encoding));
             }
         }
         return row_elements;
