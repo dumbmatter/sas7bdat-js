@@ -1,7 +1,15 @@
 {
   "name": "sas7bdat",
   "version": "0.1.0",
-  "description": "",
+  "description": "Read SAS files in JavaScript. Because you always wanted to do that, right?",
+  "homepage": "https://github.com/dumbmatter/sas7bdat-js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dumbmatter/sas7bdat-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dumbmatter/sas7bdat-js/issues"
+  },
   "main": "build/index.js",
   "scripts": {
     "build": "rm -rf build && babel index.js -d build",
