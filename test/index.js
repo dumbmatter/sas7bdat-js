@@ -109,10 +109,31 @@ describe('Options', () => {
             const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
                 rowFormat: 'object'
             });
-
             assert.deepEqual(rows[0], {sales: 73.2, price: 5.69, advert: 1.3});
-
             rows.forEach(row => assert.equal(typeof row, 'object'));
+        });
+    });
+
+    describe('skipHeader', () => {
+        it('Skips header when true', async () => {
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
+            const rows2 = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+                skipHeader: true
+            });
+            assert.deepEqual(rows2[0], [73.2, 5.69, 1.3]);
+            assert.equal(rows.length, rows2.length + 1);
+        });
+
+        it('Does nothing when rowFormat=object', async () => {
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+                skipHeader: false,
+                rowFormat: 'object'
+            });
+            const rows2 = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+                skipHeader: true,
+                rowFormat: 'object'
+            });
+            assert.deepEqual(rows, rows2);
         });
     });
 });

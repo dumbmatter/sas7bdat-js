@@ -66,9 +66,32 @@ This lets you customize the output format of date/time variables. For example, t
 
 The two arguments to the callback function are `d` (a JavaScript Date object) and `outputFormat` (a string containing 'date', 'time', or 'datetime').
 
-### Other options coming soon...
+### `options.skipHeader`
 
-- All the options of the original Python package
+By default, the first row emitted contains column names, like:
+
+    ['Col1', 'Col2', 'Col3']
+    [1, 'a', 'whatever']
+    [2, 'b', 'whatever']
+    ...
+
+When `options.skipHeader` is `true`, the row containing column names will be skipped:
+
+    [1, 'a', 'whatever']
+    [2, 'b', 'whatever']
+    ...
+
+If `options.rowFormat` is `'object'`, then `options.skipHeader` has no effect.
+
+### `options.extraDateFormatStrings`, `options.extraTimeFormatStrings`, and `options.extraDatetimeFormatStrings`
+
+### `options.encoding`
+
+### `options.encodingErrors`
+
+### `options.alignCorrection`
+
+### `options.logLevel`
 
 ## Tests
 

@@ -397,7 +397,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, dateFormatter = null, rowFormat = 'array'} = {}) {
+    constructor(path, {logLevel = 'info', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', encodingErrors = 'ignore', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -416,14 +416,14 @@ class SAS7BDAT {
         this.path = path;
         this.endianess = null;
         this.u64 = false;
-        this.logger = this._make_logger(log_level);
-        this._update_format_strings(this.TIME_FORMAT_STRINGS, extra_time_format_strings);
-        this._update_format_strings(this.DATE_TIME_FORMAT_STRINGS, extra_date_time_format_strings);
-        this._update_format_strings(this.DATE_FORMAT_STRINGS, extra_date_format_strings);
-        this.skip_header = skip_header;
+        this.logger = this._make_logger(logLevel);
+        this._update_format_strings(this.TIME_FORMAT_STRINGS, extraTimeFormatStrings);
+        this._update_format_strings(this.DATE_TIME_FORMAT_STRINGS, extraDatetimeFormatStrings);
+        this._update_format_strings(this.DATE_FORMAT_STRINGS, extraDateFormatStrings);
+        this.skip_header = skipHeader;
         this.encoding = encoding;
-        this.encoding_errors = encoding_errors;
-        this.align_correction = align_correction;
+        this.encoding_errors = encodingErrors;
+        this.align_correction = alignCorrection;
         this.date_formatter = dateFormatter;
         this.row_format = rowFormat;
         this._file = null;
@@ -710,10 +710,14 @@ class SAS7BDAT {
             } else {
                 throw new Error(`unknown page type: ${current_page_type}`);
             }
-            return this.current_row.reduce((obj, val, i) => {
-                obj[this.column_names_strings_decoded[i]] = val;
-                return obj;
-            }, {});
+
+            if (this.row_format === 'object') {
+                return this.current_row.reduce((obj, val, i) => {
+                    obj[this.column_names_strings_decoded[i]] = val;
+                    return obj;
+                }, {});
+            }
+            return this.current_row;
         }
         return null;
     }
