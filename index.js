@@ -437,6 +437,7 @@ class SAS7BDAT {
         this.columns = [];
         this.header = null;
         this.properties = null;
+        this.parsed_header = false;
         this.sent_header = false;
         this.current_row_in_file_index = 0;
         this.current_row_on_page_index = 0;
@@ -450,8 +451,6 @@ class SAS7BDAT {
         this.properties = this.header.properties;
         await this.header.parse_metadata();
         this.logger.debug(this.header);
-
-        return this.properties;
     }
 
     _update_format_strings(arr, format_strings) {
@@ -609,9 +608,7 @@ class SAS7BDAT {
     Possible values in the list are null, string, float, datetime.datetime,
     datetime.date, and datetime.time.
     */
-    async create_read_stream() {
-        await this.parse_header();
-
+    create_read_stream() {
         const that = this;
         return new stream.Readable({
             objectMode: true,
@@ -623,6 +620,10 @@ class SAS7BDAT {
     }
 
     async readline() {
+        if (!this.parsed_header) {
+            await this.parse_header();
+            this.parsed_header = true;
+        }
         const bit_offset = this.header.PAGE_BIT_OFFSET;
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
         const row_count = this.header.properties.row_count;
@@ -1668,15 +1669,15 @@ const cleanUp = async () => {
 
 process.on('exit', () => cleanUp());
 
-SAS7BDAT.createReadStream = async filename => {
+SAS7BDAT.createReadStream = filename => {
     const sas7bdat = new SAS7BDAT(filename);
-    return await sas7bdat.create_read_stream();
+    return sas7bdat.create_read_stream();
 };
 
 SAS7BDAT.parse = async filename => {
     return new Promise(async (resolve, reject) => {
         const rows = [];
-        const stream = await SAS7BDAT.createReadStream(filename);
+        const stream = SAS7BDAT.createReadStream(filename);
         stream.on('data', row => rows.push(row));
         stream.on('end', () => resolve(rows));
         stream.on('error', err => reject(err));

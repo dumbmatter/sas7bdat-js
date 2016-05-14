@@ -6,7 +6,7 @@ Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7b
 
 ## Install
 
-    npm install sas7bdat
+...don't do it yet, I'm still not quite done.
 
 ## Use
 
@@ -18,17 +18,14 @@ Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7b
         .then(rows => console.log(rows))
         .catch(err => console.log(err));
 
-`SAS7BDAT.createReadStream` returns a promise that resolves to a stream that will emit individual rows:
+`SAS7BDAT.createReadStream` returns a stream that emits individual rows:
 
     const SAS7BDAT = require('sas7bdat');
 
-    SAS7BDAT.createReadStream('test.sas7bdat');
-        .then(stream => {
-            stream.on('data', row => rows.push(row));
-            stream.on('end', () => console.log(rows));
-            stream.on('error', err => console.log(err));
-        })
-        .catch(err => console.log(err));
+    const stream = SAS7BDAT.createReadStream('test.sas7bdat');
+    stream.on('data', row => console.log(row));
+    stream.on('end', () => console.log(`Got ${rows.length} rows`));
+    stream.on('error', err => console.log(err));
 
 ## Options
 
