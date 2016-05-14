@@ -395,7 +395,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null,  extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true) {
+    constructor(path, log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -422,8 +422,7 @@ class SAS7BDAT {
         this.encoding = encoding;
         this.encoding_errors = encoding_errors;
         this.align_correction = align_correction;
-        this._file = fs.openSync(path, 'r');
-        this._open_files.push(this._file);
+        this._file = null;
         this.cached_page = null;
         this.current_page_type = null;
         this.current_page_block_count = null;
@@ -437,10 +436,19 @@ class SAS7BDAT {
         this.column_data_offsets = [];
         this.column_data_lengths = [];
         this.columns = [];
+        this.header = null;
+        this.properties = null;
+    }
+
+    async parse_header() {
+        this._file = await fs_open_async(this.path, 'r');
+        this._open_files.push(this._file);
         this.header = new SASHeader(this);
         this.properties = this.header.properties;
         this.header.parse_metadata();
         this.logger.debug(this.header);
+
+        return this.properties;
     }
 
     _update_format_strings(arr, format_strings) {
@@ -868,7 +876,7 @@ class ProcessingSubheader {
         this.COLUMN_TYPE_OFFSET = 14;
         this.COLUMN_TYPE_LENGTH = 1;
         this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_OFFSET = 22;
-        this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_LENGTH = 2
+        this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_LENGTH = 2;
         this.COLUMN_FORMAT_OFFSET_OFFSET = 24;
         this.COLUMN_FORMAT_OFFSET_LENGTH = 2;
         this.COLUMN_FORMAT_LENGTH_OFFSET = 26;
@@ -886,14 +894,14 @@ class ProcessingSubheader {
         this.int_length = this.properties.u64 ? 8 : 4;
     }
 
-    process_subheader(offset, length) {
+    process_subheader() {
         throw new NotImplementedError();
     }
 }
 
 
 class RowSizeSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader(offset) {
         const int_len = this.int_length;
         const lcs = offset + (this.properties.u64 ? 682 : 354);
         const lcp = offset + (this.properties.u64 ? 706 : 378);
@@ -905,7 +913,7 @@ class RowSizeSubheader extends ProcessingSubheader {
             [offset + this.COL_COUNT_P1_MULTIPLIER * int_len]: int_len,
             [offset + this.COL_COUNT_P2_MULTIPLIER * int_len]: int_len,
             [lcs]: 2,
-            [lcp]: 2,
+            [lcp]: 2
         });
         if (this.properties.row_length !== null) {
             throw new Error('found more than one row length subheader');
@@ -954,7 +962,7 @@ class RowSizeSubheader extends ProcessingSubheader {
 }
 
 class ColumnSizeSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader(offset) {
         offset += this.int_length;
         const vals = this.parent._read_bytes({
             [offset]: this.int_length
@@ -973,14 +981,14 @@ class ColumnSizeSubheader extends ProcessingSubheader {
 
 
 class SubheaderCountsSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader() {
         return; // Not sure what to do here yet
     }
 }
 
 
 class ColumnTextSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader(offset) {
         offset += this.int_length;
         let vals = this.parent._read_bytes({
             [offset]: this.TEXT_BLOCK_SIZE_LENGTH
@@ -1134,7 +1142,7 @@ class ColumnAttributesSubheader extends ProcessingSubheader {
 }
 
 class FormatAndLabelSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader(offset) {
         const int_len = this.int_length;
         const text_subheader_format = (
             offset + this.COLUMN_FORMAT_TEXT_SUBHEADER_INDEX_OFFSET + 3 *
@@ -1215,7 +1223,7 @@ class FormatAndLabelSubheader extends ProcessingSubheader {
 }
 
 class ColumnListSubheader extends ProcessingSubheader {
-    process_subheader(offset, length) {
+    process_subheader() {
         return; // Not sure what to do with this yet
     }
 }
@@ -1632,16 +1640,18 @@ class SASHeader {
     }
 }
 
-const cleanUp = () => {
+const cleanUp = async () => {
     for (const fd of SAS7BDAT._open_files) {
-        fs.closeSync(fd);
+        await fs_close_async(fd);
     }
 };
 
 process.on('exit', () => cleanUp());
 
-SAS7BDAT.parse = filename => {
+SAS7BDAT.parse = async filename => {
     const sas7bdat = new SAS7BDAT(filename);
+    await sas7bdat.parse_header();
+
     return Array.from(sas7bdat);
 };
 
