@@ -18,14 +18,13 @@ class NotImplementedError extends Error {
 const epoch = new Date('1960-01-01').getTime();
 const datetime = (offset_from_epoch, units, date_formatter = null, output_format = 'datetime') => {
     date_formatter = date_formatter !== null ? date_formatter : (d, output_format) => {
-        // Matching the format of StatTransfer
         if (output_format === 'date') {
-            return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+            return d.toISOString().slice(0, 10);
         }
         if (output_format === 'time') {
-            return d.toISOString().slice(11, 19);
+            return d.toISOString().slice(11, 23);
         }
-        return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()} ${d.toISOString().slice(11, 19)}`;
+        return d.toISOString();
     };
 
     // Convert days to seconds
@@ -398,7 +397,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, date_formatter = null} = {}) {
+    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, dateFormatter = null} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -425,7 +424,7 @@ class SAS7BDAT {
         this.encoding = encoding;
         this.encoding_errors = encoding_errors;
         this.align_correction = align_correction;
-        this.date_formatter = date_formatter;
+        this.date_formatter = dateFormatter;
         this._file = null;
         this.cached_page = null;
         this.current_page_type = null;
@@ -1680,15 +1679,15 @@ const cleanUp = async () => {
 
 process.on('exit', () => cleanUp());
 
-SAS7BDAT.createReadStream = filename => {
-    const sas7bdat = new SAS7BDAT(filename);
+SAS7BDAT.createReadStream = (filename, options) => {
+    const sas7bdat = new SAS7BDAT(filename, options);
     return sas7bdat.create_read_stream();
 };
 
-SAS7BDAT.parse = async filename => {
+SAS7BDAT.parse = async (filename, options) => {
     return new Promise(async (resolve, reject) => {
         const rows = [];
-        const stream = SAS7BDAT.createReadStream(filename);
+        const stream = SAS7BDAT.createReadStream(filename, options);
         stream.on('data', row => rows.push(row));
         stream.on('end', () => resolve(rows));
         stream.on('error', err => reject(err));

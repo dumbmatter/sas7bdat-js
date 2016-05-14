@@ -27,15 +27,26 @@ describe.skip('Smoke tests', function () {
 describe('Compare to StatTransfer CSV export', function () {
     this.timeout(100000);
 
-    const options = {};
+    const options = {
+        dateFormatter: (d, output_format) => {
+            // Matching the format of StatTransfer
+            if (output_format === 'date') {
+                return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+            }
+            if (output_format === 'time') {
+                return d.toISOString().slice(11, 19);
+            }
+            return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()} ${d.toISOString().slice(11, 19)}`;
+        }
+    };
 
     for (const filename of sasFilenames) {
         it(filename, async () => {
-            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename));
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat', filename), options);
 
             const filename2 = filename.replace('sas7bdat', 'csv');
             const csv = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
-            const rows2 = await csvParseAsync(csv, options);
+            const rows2 = await csvParseAsync(csv, {});
 
             assert.equal(rows.length, rows2.length);
             for (let i = 0; i < rows.length; i++) {
@@ -65,5 +76,31 @@ describe('Error handling', async () => {
             assert(err.message.includes('ENOENT'));
             assert(err.message.includes(filename));
         }
+    });
+});
+
+describe('Options', () => {
+    describe('Date formatting', () => {
+        it('Default date formatting', async () => {
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'));
+
+            assert.deepEqual(rows[1], ['2015-02-02T14:42:12.000Z', '2015-02-02', '2015-02-02', '2015-02-02', '14:42:12.000']);
+        });
+
+        it('Custom dateFormatter function', async () => {
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'), {
+                dateFormatter: (d, outputFormat) => {
+                    if (outputFormat === 'date') {
+                        return 'date';
+                    }
+                    if (outputFormat === 'time') {
+                        return 'time';
+                    }
+                    return 'datetime';
+                }
+            });
+
+            assert.deepEqual(rows[1], ['datetime', 'date', 'date', 'date', 'time']);
+        });
     });
 });
