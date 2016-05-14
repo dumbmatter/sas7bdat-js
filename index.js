@@ -381,7 +381,7 @@ class RDCDecompressor extends Decompressor {
         return b''.join([c(x) for x in out_row])*/
 
 class SAS7BDAT {
-    constructor(path, {logLevel = 'info', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
+    constructor(path, {logLevel = 'warning', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -477,19 +477,21 @@ class SAS7BDAT {
         return logger*/
 
         const levels = {
-            error: 0,
-            warning: 1,
-            debug: 2,
-            info: 3
+            debug: 0,
+            info: 1,
+            warning: 2,
+            error: 3,
+            critical: 4
         };
 
         const log = level2 => msg => {
             if (levels[level2] >= levels[level]) {
-                console.log(level2, msg);
+                console.log(`${new Date().toISOString()} [${level2}]`, msg);
             }
         };
 
         return {
+            critical: log('critical'),
             debug: log('debug'),
             error: log('error'),
             info: log('info'),

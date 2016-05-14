@@ -117,6 +117,16 @@ Boolean, default `true`. I'm not totally sure what this does, it came along with
 
 ### `options.logLevel`
 
+A string containing one of the following options:
+
+* `'critical'` - Log important error messages to the console.
+* `'error'` - Everything above, plus messages about less important errors.
+* `'warning'` - Everything above, plus messages about even less important warnings.
+* `'info'` - Everything above, plus messages about normal behavior.
+* `'debug'` - Everything above, plus more verbose debugging information.
+
+The default value is `'warning'` which will usually result in no logged messages. This is meant to by like Python's `logging` module.
+
 ## Tests
 
     npm test
