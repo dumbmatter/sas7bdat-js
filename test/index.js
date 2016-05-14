@@ -69,7 +69,7 @@ describe('Compare to StatTransfer CSV export', function () {
 });
 
 describe('Error handling', async () => {
-    it('Should throw error when file does not exist', async () => {
+    it('should throw error when file does not exist', async () => {
         try {
             await SAS7BDAT.parse(filenameDoesNotExist);
             throw new Error('Should not reach here');
@@ -82,13 +82,13 @@ describe('Error handling', async () => {
 
 describe('Options', () => {
     describe('dateFormatter', () => {
-        it('Default date formatting', async () => {
+        it('default date formatting', async () => {
             const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'));
 
             assert.deepEqual(rows[1], ['2015-02-02T14:42:12.000Z', '2015-02-02', '2015-02-02', '2015-02-02', '14:42:12.000']);
         });
 
-        it('Custom dateFormatter function', async () => {
+        it('custom dateFormatter function', async () => {
             const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'), {
                 dateFormatter: (d, outputFormat) => {
                     if (outputFormat === 'date') {
@@ -116,7 +116,7 @@ describe('Options', () => {
     });
 
     describe('skipHeader', () => {
-        it('Skips header when true', async () => {
+        it('skips header when true', async () => {
             const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
             const rows2 = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
                 skipHeader: true
@@ -125,7 +125,7 @@ describe('Options', () => {
             assert.equal(rows.length, rows2.length + 1);
         });
 
-        it('Does nothing when rowFormat=object', async () => {
+        it('does nothing when rowFormat=object', async () => {
             const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
                 skipHeader: false,
                 rowFormat: 'object'
@@ -188,6 +188,16 @@ describe('Options', () => {
             assert.equal(sas7bdat.DATE_TIME_FORMAT_STRINGS.length, 3);
             assert(sas7bdat.DATE_TIME_FORMAT_STRINGS.includes('foo'));
             assert(sas7bdat.DATE_TIME_FORMAT_STRINGS.includes('bar'));
+        });
+    });
+
+    describe('encoding', () => {
+        it('does something', async () => {
+            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
+            const rows2 = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+                encoding: 'hex'
+            });
+            assert.notDeepEqual(rows[0], rows2[0]);
         });
     });
 });

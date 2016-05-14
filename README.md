@@ -37,7 +37,7 @@ Pass an `options` object as the second parameter to `SAS7BDAT.createReadStream` 
 
 ### `options.rowFormat`
 
-A string equal to 'array' (default) or 'object' which controls whether rows come back as arrays:
+A string equal to `'array'` (default) or `'object'` which controls whether rows come back as arrays:
 
     ['Col1', 'Col2', 'Col3']
     [1, 'a', 'whatever']
@@ -85,7 +85,7 @@ If `options.rowFormat` is `'object'`, then `options.skipHeader` has no effect.
 
 ### `options.extraDateFormatStrings`, `options.extraTimeFormatStrings`, and `options.extraDatetimeFormatStrings`
 
-Date/time/datetime columns are identified by a string attatched to them, like "YYMMDD" means a date column and "DATETIME" means a datetime column. The default identifiers used here are:
+Date/time/datetime columns are identified by a string attatched to them, like `"YYMMDD"` means a date column and `"DATETIME"` means a datetime column. The default identifiers used here are:
 
 * date: `['YYMMDD', 'MMDDYY', 'DDMMYY', 'DATE', 'JULIAN', 'MONYY', 'WEEKDATE']`
 * time: `['TIME']`
@@ -100,6 +100,16 @@ Some files might have some other strings used to identify these columns, in whic
    options.extraTimeFormatStrings = ['foo', 'bar'];
 
 ### `options.encoding`
+
+A string containing the character encoding of strings in the file, default is `'utf8'`. Other available options are [whatever is supported by Node.js](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings), currently:
+
+* `'ascii'` - for 7-bit ASCII data only. This encoding method is very fast and will strip the high bit if set.
+* `'utf8'` - Multibyte encoded Unicode characters. Many web pages and other document formats use UTF-8.
+* `'utf16le'` - 2 or 4 bytes, little-endian encoded Unicode characters. Surrogate pairs (U+10000 to U+10FFFF) are supported.
+* `'ucs2'` - Alias of `'utf16le'`.
+* `'base64'` - Base64 string encoding. When creating a buffer from a string, this encoding will also correctly accept "URL * `Filename Safe Alphabet" as specified in [RFC 4648, Section 5](https://tools.ietf.org/html/rfc4648#section-5).
+* `'binary'` - A way of encoding the buffer into a one-byte (`latin-1`) encoded string. The string `'latin-1'` is not supported. Instead, pass `'binary'` to use `'latin-1'` encoding.
+* `'hex'` - Encode each byte as two hexadecimal characters.
 
 ### `options.encodingErrors`
 
