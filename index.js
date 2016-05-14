@@ -397,7 +397,7 @@ If your sas7bdat file uses non-standard format strings for time, datetime,
 or date values, pass those strings into the constructor using the
 appropriate kwarg.*/
 class SAS7BDAT {
-    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, dateFormatter = null} = {}) {
+    constructor(path, {log_level = 'info', extra_time_format_strings = null, extra_date_time_format_strings = null, extra_date_format_strings = null, skip_header = false, encoding = 'utf8', encoding_errors = 'ignore', align_correction = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this._open_files = [];
         SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
@@ -425,6 +425,7 @@ class SAS7BDAT {
         this.encoding_errors = encoding_errors;
         this.align_correction = align_correction;
         this.date_formatter = dateFormatter;
+        this.row_format = rowFormat;
         this._file = null;
         this.cached_page = null;
         this.current_page_type = null;
@@ -605,13 +606,6 @@ class SAS7BDAT {
         return val;
     }
 
-    /*
-    readlines() -> generator which yields lists of values, each a line
-    from the file.
-
-    Possible values in the list are null, string, float, datetime.datetime,
-    datetime.date, and datetime.time.
-    */
     create_read_stream() {
         const that = this;
         return new stream.Readable({
@@ -635,9 +629,12 @@ class SAS7BDAT {
         const bit_offset = this.header.PAGE_BIT_OFFSET;
         const subheader_pointer_length = this.header.SUBHEADER_POINTER_LENGTH;
         const row_count = this.header.properties.row_count;
-        if (!this.skip_header && !this.sent_header) {
+        if (!this.column_names_strings_decoded) {
+            this.column_names_strings_decoded = this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
+        }
+        if (!this.skip_header && !this.sent_header && this.row_format === 'array') {
             this.sent_header = true;
-            return this.columns.map(x => decode(x.name, this.encoding, this.encoding_errors));
+            return this.column_names_strings_decoded;
         }
         if (!this.cached_page) {
             await fs_seek_async(this._file, this.properties.header_length, 0);
@@ -713,7 +710,10 @@ class SAS7BDAT {
             } else {
                 throw new Error(`unknown page type: ${current_page_type}`);
             }
-            return this.current_row;
+            return this.current_row.reduce((obj, val, i) => {
+                obj[this.column_names_strings_decoded[i]] = val;
+                return obj;
+            }, {});
         }
         return null;
     }

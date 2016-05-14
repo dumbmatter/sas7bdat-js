@@ -35,6 +35,21 @@ Pass an `options` object as the second parameter to `SAS7BDAT.createReadStream` 
 
     const stream = SAS7BDAT.createReadStream('test.sas7bdat', options);
 
+### `options.rowFormat`
+
+A string equal to 'array' (default) or 'object' which controls whether rows come back as arrays:
+
+    ['Col1', 'Col2', 'Col3']
+    [1, 'a', 'whatever']
+    [2, 'b', 'whatever']
+    ...
+
+or objects:
+
+    {Col1: 1, Col2: 'a', Col3: 'whatever'}
+    {Col1: 2, Col2: 'b', Col3: 'whatever'}
+    ...
+
 ### `options.dateFormatter`
 
 This lets you customize the output format of date/time variables. For example, the default is:
@@ -53,7 +68,6 @@ The two arguments to the callback function are `d` (a JavaScript Date object) an
 
 ### Other options coming soon...
 
-- Whether you want arrays or objects returned for rows
 - All the options of the original Python package
 
 ## Tests

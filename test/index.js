@@ -80,7 +80,7 @@ describe('Error handling', async () => {
 });
 
 describe('Options', () => {
-    describe('Date formatting', () => {
+    describe('dateFormatter', () => {
         it('Default date formatting', async () => {
             const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'));
 
@@ -101,6 +101,18 @@ describe('Options', () => {
             });
 
             assert.deepEqual(rows[1], ['datetime', 'date', 'date', 'date', 'time']);
+        });
+    });
+
+    describe('rowFormat', () => {
+        it('object', async () => {
+            const rows = await sas7bdat.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+                rowFormat: 'object'
+            });
+
+            assert.deepEqual(rows[0], {sales: 73.2, price: 5.69, advert: 1.3});
+
+            rows.forEach(row => assert.equal(typeof row, 'object'));
         });
     });
 });
