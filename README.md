@@ -85,6 +85,20 @@ If `options.rowFormat` is `'object'`, then `options.skipHeader` has no effect.
 
 ### `options.extraDateFormatStrings`, `options.extraTimeFormatStrings`, and `options.extraDatetimeFormatStrings`
 
+Date/time/datetime columns are identified by a string attatched to them, like "YYMMDD" means a date column and "DATETIME" means a datetime column. The default identifiers used here are:
+
+* date: `['YYMMDD', 'MMDDYY', 'DDMMYY', 'DATE', 'JULIAN', 'MONYY', 'WEEKDATE']`
+* time: `['TIME']`
+* datetime: `['DATETIME']`
+
+Some files might have some other strings used to identify these columns, in which case you can use `options.extraDateFormatStrings`, `options.extraTimeFormatStrings`, and `options.extraDatetimeFormatStrings` as needed. For example:
+
+   // Add another date format string
+   options.extraDateFormatStrings = 'whatever';
+
+   // Add more than one time format string by using an array
+   options.extraTimeFormatStrings = ['foo', 'bar'];
+
 ### `options.encoding`
 
 ### `options.encodingErrors`
