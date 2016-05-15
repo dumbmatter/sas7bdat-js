@@ -704,6 +704,7 @@ class SAS7BDAT {
             }
             return this.current_row;
         }
+        await this.close();
         return null;
     }
 

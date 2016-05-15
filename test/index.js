@@ -68,6 +68,29 @@ describe('Compare to StatTransfer CSV export', function () {
     }
 });
 
+describe('Normal functionality', async () => {
+    it('should close file when done streaming', async () => {
+        const sas7bdat = new SAS7BDAT(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
+        const rows = [];
+
+        return new Promise(async (resolve, reject) => {
+            const stream = await sas7bdat.create_read_stream();
+            stream.on('data', row => rows.push(row));
+            stream.on('error', err => reject(err));
+            stream.on('end', () => {
+                assert.equal(rows.length, 76);
+
+                // Will throw error if file is already closed, as it should be
+                assert.throws(() => {
+                    fs.readSync(sas7bdat._file, Buffer.alloc(2), 0, 2);
+                }, /EBADF/);
+
+                resolve();
+            });
+        });
+    });
+});
+
 describe('Error handling', async () => {
     it('should throw error when file does not exist', async () => {
         try {
