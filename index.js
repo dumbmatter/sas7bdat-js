@@ -78,307 +78,354 @@ const decode = (buf, encoding) => {
     return buf.toString(encoding);
 };
 
-
-/*class Decompressor {
+class Decompressor {
     constructor(parent) {
-        this.parent = parent
+        this.parent = parent;
+    }
 
     decompress_row(offset, length, result_length, page) {
         throw new NotImplementedError();
+    }
 
-    @staticmethod
-    to_ord(int_or_str) {
-        if isinstance(int_or_str, int) {
-            return int_or_str
-        return ord(int_or_str)
+    static to_ord(int_or_str) {
+        if (typeof int_or_str === 'number') {
+            return int_or_str;
+        }
+        return int_or_str.charCodeAt(0);
+    }
 
-    @staticmethod
-    to_chr(int_or_str) {
-        py2 = six.PY2
-        if isinstance(int_or_str, (bytes, bytearray)) {
-            return int_or_str
-        if py2:
-            return chr(int_or_str)
-        return bytes([int_or_str])
+    static to_chr(int_or_str) {
+        if (typeof int_or_str === 'string') {
+            return int_or_str;
+        }
+        if (int_or_str instanceof Buffer) {
+            return int_or_str.toString('ascii');
+        }
+        return String.fromCharCode(int_or_str);
+    }
+}
 
 
+// Decompresses data using the Run Length Encoding algorithm
 class RLEDecompressor extends Decompressor {
-    """
-    Decompresses data using the Run Length Encoding algorithm
-    """
     decompress_row(offset, length, result_length, page) {
-        b = this.to_ord
-        c = this.to_chr
-        current_result_array_index = 0
-        result = []
-        i = 0
-        for (let j = 0; i < length; i++) {
-            if i !== j:
-                continue
-            control_byte = b(page[offset + i]) & 0xF0
-            end_of_first_byte = b(page[offset + i]) & 0x0F
-            if control_byte === 0x00:
-                if i !== (length - 1) {
-                    count_of_bytes_to_copy = (
+        const b = Decompressor.to_ord;
+        const c = Decompressor.to_chr;
+        let current_result_array_index = 0;
+        let result = [];
+        let i = 0;
+        for (let j = 0; j < length; j++) {
+            if (i !== j) {
+                continue;
+            }
+            const control_byte = b(page[offset + i]) & 0xF0;
+            const end_of_first_byte = b(page[offset + i]) & 0x0F;
+            if (control_byte === 0x00) {
+                if (i !== (length - 1)) {
+                    const count_of_bytes_to_copy = (
                         (b(page[offset + i + 1]) & 0xFF) +
                         64 +
                         end_of_first_byte * 256
-                    )
-                    start = offset + i + 2
-                    end = start + count_of_bytes_to_copy
-                    result.push(c(page[start:end]))
-                    i += count_of_bytes_to_copy + 1
-                    current_result_array_index += count_of_bytes_to_copy
-            } else if (control_byte === 0x40:
-                copy_counter = (
+                    );
+                    const start = offset + i + 2;
+                    const end = start + count_of_bytes_to_copy;
+                    result.push(c(page.slice(start, end)));
+                    i += count_of_bytes_to_copy + 1;
+                    current_result_array_index += count_of_bytes_to_copy;
+                }
+            } else if (control_byte === 0x40) {
+                const copy_counter = (
                     end_of_first_byte * 16 +
                     (b(page[offset + i + 1]) & 0xFF)
-                )
-                for _ in xrange(copy_counter + 18) {
-                    result.push(c(page[offset + i + 2]))
-                    current_result_array_index += 1
-                i += 2
-            } else if (control_byte === 0x60:
-                for _ in xrange(end_of_first_byte * 256 +
-                                (b(page[offset + i + 1]) & 0xFF) + 17) {
-                    result.push(c(0x20))
-                    current_result_array_index += 1
-                i += 1
-            } else if (control_byte === 0x70:
-                for _ in xrange(end_of_first_byte * 256 +
-                                (b(page[offset + i + 1]) & 0xFF) + 17) {
-                    result.push(c(0x00))
-                    current_result_array_index += 1
-                i += 1
-            } else if (control_byte === 0x80:
-                count_of_bytes_to_copy = Math.min(end_of_first_byte + 1,
-                                             length - (i + 1))
-                start = offset + i + 1
-                end = start + count_of_bytes_to_copy
-                result.push(c(page[start:end]))
-                i += count_of_bytes_to_copy
-                current_result_array_index += count_of_bytes_to_copy
-            } else if (control_byte === 0x90:
-                count_of_bytes_to_copy = Math.min(end_of_first_byte + 17,
-                                             length - (i + 1))
-                start = offset + i + 1
-                end = start + count_of_bytes_to_copy
-                result.push(c(page[start:end]))
-                i += count_of_bytes_to_copy
-                current_result_array_index += count_of_bytes_to_copy
-            } else if (control_byte === 0xA0:
-                count_of_bytes_to_copy = Math.min(end_of_first_byte + 33,
-                                             length - (i + 1))
-                start = offset + i + 1
-                end = start + count_of_bytes_to_copy
-                result.push(c(page[start:end]))
-                i += count_of_bytes_to_copy
-                current_result_array_index += count_of_bytes_to_copy
-            } else if (control_byte === 0xB0:
-                count_of_bytes_to_copy = Math.min(end_of_first_byte + 49,
-                                             length - (i + 1))
-                start = offset + i + 1
-                end = start + count_of_bytes_to_copy
-                result.push(c(page[start:end]))
-                i += count_of_bytes_to_copy
-                current_result_array_index += count_of_bytes_to_copy
-            } else if (control_byte === 0xC0:
-                for _ in xrange(end_of_first_byte + 3) {
-                    result.push(c(page[offset + i + 1]))
-                    current_result_array_index += 1
-                i += 1
-            } else if (control_byte === 0xD0:
-                for _ in xrange(end_of_first_byte + 2) {
-                    result.push(c(0x40))
-                    current_result_array_index += 1
-            } else if (control_byte === 0xE0:
-                for _ in xrange(end_of_first_byte + 2) {
-                    result.push(c(0x20))
-                    current_result_array_index += 1
-            } else if (control_byte === 0xF0:
-                for _ in xrange(end_of_first_byte + 2) {
-                    result.push(c(0x00))
-                    current_result_array_index += 1
+                );
+                for (let _ = 0; _ < copy_counter + 18; _++) {
+                    result.push(c(page[offset + i + 2]));
+                    current_result_array_index += 1;
+                }
+                i += 2;
+            } else if (control_byte === 0x60) {
+                for (let _ = 0; _ < end_of_first_byte * 256 + (b(page[offset + i + 1]) & 0xFF) + 17; _++) {
+                    result.push(c(0x20));
+                    current_result_array_index += 1;
+                }
+                i += 1;
+            } else if (control_byte === 0x70) {
+                for (let _ = 0; _ < end_of_first_byte * 256 + (b(page[offset + i + 1]) & 0xFF) + 17; _++) {
+                    result.push(c(0x00));
+                    current_result_array_index += 1;
+                }
+                i += 1;
+            } else if (control_byte === 0x80) {
+                const count_of_bytes_to_copy = Math.min(end_of_first_byte + 1, length - (i + 1));
+                const start = offset + i + 1;
+                const end = start + count_of_bytes_to_copy;
+                result.push(c(page.slice(start, end)));
+                i += count_of_bytes_to_copy;
+                current_result_array_index += count_of_bytes_to_copy;
+            } else if (control_byte === 0x90) {
+                const count_of_bytes_to_copy = Math.min(end_of_first_byte + 17, length - (i + 1));
+                const start = offset + i + 1;
+                const end = start + count_of_bytes_to_copy;
+                result.push(c(page.slice(start, end)));
+                i += count_of_bytes_to_copy;
+                current_result_array_index += count_of_bytes_to_copy;
+            } else if (control_byte === 0xA0) {
+                const count_of_bytes_to_copy = Math.min(end_of_first_byte + 33, length - (i + 1));
+                const start = offset + i + 1;
+                const end = start + count_of_bytes_to_copy;
+                result.push(c(page.slice(start, end)));
+                i += count_of_bytes_to_copy;
+                current_result_array_index += count_of_bytes_to_copy;
+            } else if (control_byte === 0xB0) {
+                const count_of_bytes_to_copy = Math.min(end_of_first_byte + 49, length - (i + 1));
+                const start = offset + i + 1;
+                const end = start + count_of_bytes_to_copy;
+                result.push(c(page.slice(start, end)));
+                i += count_of_bytes_to_copy;
+                current_result_array_index += count_of_bytes_to_copy;
+            } else if (control_byte === 0xC0) {
+                for (let _ = 0; _ < end_of_first_byte + 3; _++) {
+                    result.push(c(page[offset + i + 1]));
+                    current_result_array_index += 1;
+                }
+                i += 1;
+            } else if (control_byte === 0xD0) {
+                for (let _ = 0; _ < end_of_first_byte + 2; _++) {
+                    result.push(c(0x40));
+                    current_result_array_index += 1;
+                }
+            } else if (control_byte === 0xE0) {
+                for (let _ = 0; _ < end_of_first_byte + 2; _++) {
+                    result.push(c(0x20));
+                    current_result_array_index += 1;
+                }
+            } else if (control_byte === 0xF0) {
+                for (let _ = 0; _ < end_of_first_byte + 2; _++) {
+                    result.push(c(0x00));
+                    current_result_array_index += 1;
+                }
             } else {
-                throw new Error(`unknown control byte: ${control_byte}`)
-            i += 1
+                throw new Error(`unknown control byte: ${control_byte}`);
+            }
+            i += 1;
+        }
 
-        result = b''.join(result)
-        if result.length !== result_length:
-            throw new Error('unexpected result length: %d !== %d' %
-                                     (result.length, result_length))
+        result = Buffer.from(result.join(''));
+        if (result.length !== result_length) {
+            throw new Error(`unexpected result length: ${result.length} !== ${result_length}`);
+        }
 
-        return result
+        return result;
+    }
+}
 
 
+// Decompresses data using the Ross Data Compression algorithm
 class RDCDecompressor extends Decompressor {
-    """
-    Decompresses data using the Ross Data Compression algorithm
-    """
-    bytes_to_bits(src, offset, length) {
-        result = [0] * (length * 8)
+    constructor () {
+        super();
+        throw new NotImplementedError();
+    }
+
+/*    bytes_to_bits(src, offset, length) {
+        const result = [];
+        for (let i = 0; i < length * 8; i++) {
+            result.push(0);
+        }
         for (let i = 0; i < length; i++) {
             b = src[offset + i]
             for (let bit = 0; i < 8; i++) {
-                result[8 * i + (7 - bit)] = 0 if ((b & (1 << bit)) === 0) else 1
+                result[8 * i + (7 - bit)] = (b & (1 << bit)) === 0 ? 0 : 1;
             }
-        return result
+        }
+        return result;
+    }
 
     ensure_capacity(src, capacity) {
-        if capacity >= src.length {
-            new_len = max(capacity, 2 * src.length)
-            src.extend([0] * (new_len - src.length))
-        return src
+        if (capacity >= src.length) {
+            new_len = max(capacity, 2 * src.length);
+            src.extend([0] * (new_len - src.length));
+        }
+        return src;
+    }
 
     is_short_rle(first_byte_of_cb) {
-        return first_byte_of_cb in [0x00, 0x01, 0x02, 0x03, 0x04, 0x05])
+        return [0x00, 0x01, 0x02, 0x03, 0x04, 0x05].includes(first_byte_of_cb);
+    }
 
     is_single_byte_marker(first_byte_of_cb) {
-        return first_byte_of_cb in [0x02, 0x04, 0x06, 0x08, 0x0A])
+        return [0x02, 0x04, 0x06, 0x08, 0x0A].includes(first_byte_of_cb);
+    }
 
     is_two_bytes_marker(double_bytes_cb) {
-        return double_bytes_cb.length === 2 and\
-            ((double_bytes_cb[0] >> 4) & 0xF) > 2
+        return double_bytes_cb.length === 2 && ((double_bytes_cb[0] >> 4) & 0xF) > 2;
+    }
 
     is_three_bytes_marker(three_byte_marker) {
-        flag = three_byte_marker[0] >> 4
-        return three_byte_marker.length === 3 && (flag & 0xF) in [1, 2])
+        const flag = three_byte_marker[0] >> 4;
+        return three_byte_marker.length === 3 && [1, 2].includes(flag & 0xF);
+    }
 
     get_length_of_rle_pattern(first_byte_of_cb) {
-        if first_byte_of_cb <= 0x05:
-            return first_byte_of_cb + 3
-        return 0
+        if (first_byte_of_cb <= 0x05) {
+            return first_byte_of_cb + 3;
+        }
+        return 0;
+    }
 
     get_length_of_one_byte_pattern(first_byte_of_cb) {
-        return first_byte_of_cb + 14\
-            if this.is_single_byte_marker(first_byte_of_cb) else 0
+        return this.is_single_byte_marker(first_byte_of_cb) ? first_byte_of_cb + 14 : 0;
+    }
 
     get_length_of_two_bytes_pattern(double_bytes_cb) {
-        return (double_bytes_cb[0] >> 4) & 0xF
+        return (double_bytes_cb[0] >> 4) & 0xF;
+    }
 
     get_length_of_three_bytes_pattern(p_type, three_byte_marker) {
-        if p_type === 1:
-            return 19 + (three_byte_marker[0] & 0xF) +\
-                (three_byte_marker[1] * 16)
-        } else if (p_type === 2:
-            return three_byte_marker[2] + 16
-        return 0
+        if (p_type === 1) {
+            return 19 + (three_byte_marker[0] & 0xF) + (three_byte_marker[1] * 16);
+        } else if (p_type === 2) {
+            return three_byte_marker[2] + 16;
+        }
+        return 0;
+    }
 
     get_offset_for_one_byte_pattern(first_byte_of_cb) {
-        if first_byte_of_cb === 0x08:
-            return 24
-        } else if (first_byte_of_cb === 0x0A:
-            return 40
-        return 0
+        if (first_byte_of_cb === 0x08) {
+            return 24;
+        } else if (first_byte_of_cb === 0x0A) {
+            return 40;
+        }
+        return 0;
+    }
 
     get_offset_for_two_bytes_pattern(double_bytes_cb) {
-        return 3 + (double_bytes_cb[0] & 0xF) + (double_bytes_cb[1] * 16)
+        return 3 + (double_bytes_cb[0] & 0xF) + (double_bytes_cb[1] * 16);
+    }
 
     get_offset_for_three_bytes_pattern(triple_bytes_cb) {
-        return 3 + (triple_bytes_cb[0] & 0xF) + (triple_bytes_cb[1] * 16)
+        return 3 + (triple_bytes_cb[0] & 0xF) + (triple_bytes_cb[1] * 16);
+    }
 
     clone_byte(b, length) {
-        return [b] * length
+        return [b] * length;
+    }
 
     decompress_row(offset, length, result_length, page) {
-        b = this.to_ord
-        c = this.to_chr
-        src_row = [b(x) for x in page.slice(offset, offset + length)]
-        out_row = [0] * result_length
-        src_offset = 0
-        out_offset = 0
-        while src_offset < (src_row.length - 2) {
-            prefix_bits = this.bytes_to_bits(src_row, src_offset, 2)
-            src_offset += 2
-            for bit_index in xrange(16) {
-                if src_offset >= src_row.length {
-                    break
-                if prefix_bits[bit_index] === 0:
-                    out_row = this.ensure_capacity(out_row, out_offset)
-                    out_row[out_offset] = src_row[src_offset]
-                    src_offset += 1
-                    out_offset += 1
-                    continue
-                marker_byte = src_row[src_offset]
-                try:
-                    next_byte = src_row[src_offset + 1]
-                except IndexError:
-                    break
-                if this.is_short_rle(marker_byte) {
-                    length = this.get_length_of_rle_pattern(marker_byte)
+        const b = Decompressor.to_ord
+        const c = Decompressor.to_chr
+        const src_row = page.slice(offset, offset + length).map(b);
+        let out_row = [];
+        for (let i = 0; i < result_length; i++) {
+            out_row.push(0);
+        }
+        let src_offset = 0;
+        let out_offset = 0;
+        while (src_offset < (src_row.length - 2)) {
+            prefix_bits = this.bytes_to_bits(src_row, src_offset, 2);
+            src_offset += 2;
+            for (let bit_index = 0; bit_index < 16; bit_index++) {
+                if (src_offset >= src_row.length) {
+                    break;
+                }
+                if (prefix_bits[bit_index] === 0) {
+                    out_row = this.ensure_capacity(out_row, out_offset);
+                    out_row[out_offset] = src_row[src_offset];
+                    src_offset += 1;
+                    out_offset += 1;
+                    continue;
+                }
+                marker_byte = src_row[src_offset];
+                const next_byte = src_row[src_offset + 1];
+                if (next_byte === undefined) {
+                    break;
+                }
+                if (this.is_short_rle(marker_byte)) {
+                    const length = this.get_length_of_rle_pattern(marker_byte);
                     out_row = this.ensure_capacity(
                         out_row, out_offset + length
-                    )
-                    pattern = this.clone_byte(next_byte, length)
-                    out_row[out_offset:out_offset + length] = pattern
-                    out_offset += length
-                    src_offset += 2
-                    continue
-                } else if (this.is_single_byte_marker(marker_byte) && not\
-                        ((next_byte & 0xF0) === ((next_byte << 4) & 0xF0)) {
-                    length = this.get_length_of_one_byte_pattern(marker_byte)
+                    );
+                    const pattern = this.clone_byte(next_byte, length);
+throw new NotImplementedError();
+                    out_row[out_offset:out_offset + length] = pattern;
+                    out_offset += length;
+                    src_offset += 2;
+                    continue;
+                } else if (this.is_single_byte_marker(marker_byte) && !((next_byte & 0xF0) === ((next_byte << 4) & 0xF0))) {
+                    const length = this.get_length_of_one_byte_pattern(marker_byte);
                     out_row = this.ensure_capacity(
                         out_row, out_offset + length
-                    )
+                    );
                     back_offset = this.get_offset_for_one_byte_pattern(
                         marker_byte
-                    )
-                    start = out_offset - back_offset
-                    end = start + length
+                    );
+                    const start = out_offset - back_offset;
+                    const end = start + length;
+throw new NotImplementedError();
                     out_row[out_offset:out_offset + length] =\
-                        out_row[start:end]
-                    src_offset += 1
-                    out_offset += length
-                    continue
-                two_bytes_marker = src_row.slice(src_offset, src_offset + 2)
-                if this.is_two_bytes_marker(two_bytes_marker) {
-                    length = this.get_length_of_two_bytes_pattern(
+                        out_row.slice(start, end)
+                    src_offset += 1;
+                    out_offset += length;
+                    continue;
+                }
+                const two_bytes_marker = src_row.slice(src_offset, src_offset + 2);
+                if (this.is_two_bytes_marker(two_bytes_marker)) {
+                    const length = this.get_length_of_two_bytes_pattern(
                         two_bytes_marker
-                    )
+                    );
                     out_row = this.ensure_capacity(
                         out_row, out_offset + length
-                    )
-                    back_offset = this.get_offset_for_two_bytes_pattern(
+                    );
+                    const back_offset = this.get_offset_for_two_bytes_pattern(
                         two_bytes_marker
-                    )
-                    start = out_offset - back_offset
-                    end = start + length
+                    );
+                    const start = out_offset - back_offset;
+                    const end = start + length;
+throw new NotImplementedError();
                     out_row[out_offset:out_offset + length] =\
-                        out_row[start:end]
-                    src_offset += 2
-                    out_offset += length
-                    continue
-                three_bytes_marker = src_row.slice(src_offset, src_offset + 3)
-                if this.is_three_bytes_marker(three_bytes_marker) {
-                    p_type = (three_bytes_marker[0] >> 4) & 0x0F
-                    back_offset = 0
-                    if p_type === 2:
+                        out_row.slice(start, end)
+                    src_offset += 2;
+                    out_offset += length;
+                    continue;
+                }
+                const three_bytes_marker = src_row.slice(src_offset, src_offset + 3);
+                if (this.is_three_bytes_marker(three_bytes_marker)) {
+                    const p_type = (three_bytes_marker[0] >> 4) & 0x0F;
+                    let back_offset = 0;
+                    if (p_type === 2) {
                         back_offset = this.get_offset_for_three_bytes_pattern(
                             three_bytes_marker
-                        )
-                    length = this.get_length_of_three_bytes_pattern(
+                        );
+                    }
+                    const length = this.get_length_of_three_bytes_pattern(
                         p_type, three_bytes_marker
-                    )
+                    );
                     out_row = this.ensure_capacity(
                         out_row, out_offset + length
-                    )
-                    if p_type === 1:
+                    );
+                    if (p_type === 1) {
                         pattern = this.clone_byte(
                             three_bytes_marker[2], length
-                        )
+                        );
                     } else {
-                        start = out_offset - back_offset
-                        end = start + length
-                        pattern = out_row.slice(start, end)
-                    out_row[out_offset:out_offset + length] = pattern
-                    src_offset += 3
-                    out_offset += length
-                    continue
+                        const start = out_offset - back_offset;
+                        const end = start + length;
+                        pattern = out_row.slice(start, end);
+                    }
+throw new NotImplementedError();
+                    out_row[out_offset:out_offset + length] = pattern;
+                    src_offset += 3;
+                    out_offset += length;
+                    continue;
                 } else {
                     throw new Error(`unknown marker ${src_row[src_offset]} at offset ${src_offset}`);
                     break;
                 }
-        return b''.join([c(x) for x in out_row])*/
+            }
+        }
+        return Buffer.from(out_row.map(c).join(''));
+    }*/
+}
 
 class SAS7BDAT {
     constructor(path, {logLevel = 'warning', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
@@ -390,8 +437,8 @@ class SAS7BDAT {
         this.COMPRESSION_LITERALS = [this.RLE_COMPRESSION, this.RDC_COMPRESSION];
         SAS7BDAT.COMPRESSION_LITERALS = this.COMPRESSION_LITERALS;
         this.DECOMPRESSORS = {
-            [this.RLE_COMPRESSION]: this.RLEDecompressor,
-            [this.RDC_COMPRESSION]: this.RDCDecompressor
+            [this.RLE_COMPRESSION]: RLEDecompressor,
+            [this.RDC_COMPRESSION]: RDCDecompressor
         };
         this.TIME_FORMAT_STRINGS = ['TIME'];
         this.DATE_TIME_FORMAT_STRINGS = ['DATETIME'];
@@ -432,6 +479,7 @@ class SAS7BDAT {
     }
 
     async parse_header() {
+        this.logger.debug('Start parse_header');
         this._file = await fs_open_async(this.path, 'r');
         this._open_files.push(this._file);
         this.header = new SASHeader(this);
@@ -734,7 +782,7 @@ class SAS7BDAT {
         const row_elements = [];
         let source;
         if (this.properties.compression && length < this.properties.row_length) {
-            const Decompressor = this.DECOMPRESSOR[this.properties.compression];
+            const Decompressor = this.DECOMPRESSORS[this.properties.compression];
             source = new Decompressor(this).decompress_row(
                 offset, length, this.properties.row_length,
                 this.cached_page
@@ -1614,6 +1662,7 @@ class SASHeader {
                     }
                 } else {
                     parent.logger.debug('unknown subheader signature');
+                    parent.logger.debug(subheader_signature);
                 }
             }
         }
@@ -1627,7 +1676,7 @@ class SASHeader {
 
     get_subheader_class(signature, compression, type) {
         let index = this.SUBHEADER_SIGNATURE_TO_INDEX[signature.toString('hex')];
-        if (this.properties.compression !== null && index === null && (compression === this.COMPRESSED_SUBHEADER_ID || compression === 0) && type === this.COMPRESSED_SUBHEADER_TYPE) {
+        if (this.properties.compression !== null && index === undefined && (compression === this.COMPRESSED_SUBHEADER_ID || compression === 0) && type === this.COMPRESSED_SUBHEADER_TYPE) {
             index = this.DATA_SUBHEADER_INDEX;
         }
         return index;
@@ -1685,3 +1734,7 @@ SAS7BDAT.parse = async (filename, options) => {
 };
 
 module.exports = SAS7BDAT;
+
+SAS7BDAT.parse('test/data/sas7bdat/co.sas7bdat')
+    .then(rows => console.log(rows))
+    .catch(err => console.log(err));
