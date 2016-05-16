@@ -96,12 +96,15 @@ class Decompressor {
 
     static to_chr(int_or_str) {
         if (typeof int_or_str === 'string') {
-            return int_or_str;
+//console.log('to_chrA', int_or_str)
+            return Buffer.from(int_or_str);
         }
         if (int_or_str instanceof Buffer) {
-            return int_or_str.toString('ascii');
+//console.log('to_chrB', int_or_str, int_or_str.toString('ascii'))
+            return int_or_str;
         }
-        return String.fromCharCode(int_or_str);
+//console.log('to_chrC', int_or_str, String.fromCharCode(int_or_str))
+        return Buffer.from(String.fromCharCode(int_or_str));
     }
 }
 
@@ -159,7 +162,9 @@ class RLEDecompressor extends Decompressor {
                 const count_of_bytes_to_copy = Math.min(end_of_first_byte + 1, length - (i + 1));
                 const start = offset + i + 1;
                 const end = start + count_of_bytes_to_copy;
+//console.log('before', page.slice(start, end))
                 result.push(c(page.slice(start, end)));
+//console.log('after', Buffer.from(result[result.length - 1]));
                 i += count_of_bytes_to_copy;
                 current_result_array_index += count_of_bytes_to_copy;
             } else if (control_byte === 0x90) {
@@ -208,9 +213,10 @@ class RLEDecompressor extends Decompressor {
                 throw new Error(`unknown control byte: ${control_byte}`);
             }
             i += 1;
+//if (result.length > 6) { console.log(result); console.log(Buffer.concat(result)); foo; }
         }
 
-        result = Buffer.from(result.join(''));
+        result = Buffer.concat(result);
         if (result.length !== result_length) {
             throw new Error(`unexpected result length: ${result.length} !== ${result_length}`);
         }
