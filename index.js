@@ -97,14 +97,19 @@ class Decompressor {
     static to_chr(int_or_str) {
         if (typeof int_or_str === 'string') {
 //console.log('to_chrA', int_or_str)
-            return Buffer.from(int_or_str);
-        }
-        if (int_or_str instanceof Buffer) {
-//console.log('to_chrB', int_or_str, int_or_str.toString('ascii'))
             return int_or_str;
         }
+        if (int_or_str instanceof Buffer) {
+            // Not sure why int_or_str.toString('ascii'); fails, but sometimes it does
+            let str = '';
+            for (let i = 0; i < int_or_str.length; i++) {
+                str += String.fromCharCode(int_or_str[i])
+            }
+//console.log('to_chrB', int_or_str, str)
+            return str;
+        }
 //console.log('to_chrC', int_or_str, String.fromCharCode(int_or_str))
-        return Buffer.from(String.fromCharCode(int_or_str));
+        return String.fromCharCode(int_or_str);
     }
 }
 
@@ -164,7 +169,7 @@ class RLEDecompressor extends Decompressor {
                 const end = start + count_of_bytes_to_copy;
 //console.log('before', page.slice(start, end))
                 result.push(c(page.slice(start, end)));
-//console.log('after', Buffer.from(result[result.length - 1]));
+//console.log('after', Buffer.from(result[result.length - 1], 'ascii'));
                 i += count_of_bytes_to_copy;
                 current_result_array_index += count_of_bytes_to_copy;
             } else if (control_byte === 0x90) {
@@ -213,10 +218,10 @@ class RLEDecompressor extends Decompressor {
                 throw new Error(`unknown control byte: ${control_byte}`);
             }
             i += 1;
-//if (result.length > 6) { console.log(result); console.log(Buffer.concat(result)); foo; }
+//if (result.length > 6) { console.log(result, Buffer.from(result.join(''), 'ascii')); foo; }
         }
 
-        result = Buffer.concat(result);
+        result = Buffer.from(result.join(''), 'ascii');
         if (result.length !== result_length) {
             throw new Error(`unexpected result length: ${result.length} !== ${result_length}`);
         }
@@ -1741,6 +1746,6 @@ SAS7BDAT.parse = async (filename, options) => {
 
 module.exports = SAS7BDAT;
 
-SAS7BDAT.parse('test/data/sas7bdat/co.sas7bdat')
+/*SAS7BDAT.parse('test/data/sas7bdat/co.sas7bdat')
     .then(rows => console.log(rows))
-    .catch(err => console.log(err));
+    .catch(err => console.log(err));*/
