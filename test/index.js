@@ -7,7 +7,16 @@ const SAS7BDAT = require('../index');
 
 const csvParseAsync = denodeify(csvParse);
 
-const sasFilenames = fs.readdirSync(path.join(__dirname, 'data/sas7bdat'));
+const sasFolder = path.join(__dirname, 'data/sas7bdat');
+const csvFolder = path.join(__dirname, 'data/csv');
+
+// Something weird about supppe.sas7bdat and suppesv.sas7bdat, row counts match but maybe come out of order? Python one seems to do it too.
+// se.sas7bdat doesn't work in Python one either??
+const skip = [];//['se.sas7bdat', 'sv.sas7bdat'];
+const sasFilenames = fs.readdirSync(sasFolder).sort((a, b) => {
+    return fs.statSync(path.join(sasFolder, a)).size - fs.statSync(path.join(sasFolder, b)).size;
+}).filter(filename => !skip.includes(filename));
+console.log(sasFilenames);
 
 const filenameDoesNotExist = 'does_not_exist.sas7bdat';
 
@@ -20,14 +29,14 @@ const assertCloseEnough = (x, y) => {
 // Smoke tests - run on various data files and see if there is an error.
 // Kind of redundant with the StatTransfer tests below...
 describe.skip('Smoke tests', function () {
-    this.timeout(100000);
+    this.timeout(10000000);
     for (const filename of sasFilenames) {
-        it(filename, () => SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat', filename)));
+        it(filename, () => SAS7BDAT.parse(sasFolder, filename));
     }
 });
 
 describe('Compare to StatTransfer CSV export', function () {
-    this.timeout(100000);
+    this.timeout(1000000);
 
     const options = {
         dateFormatter: (d, output_format) => {
@@ -44,10 +53,10 @@ describe('Compare to StatTransfer CSV export', function () {
 
     for (const filename of sasFilenames) {
         it(filename, async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat', filename), options);
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, filename), options);
 
             const filename2 = filename.replace('sas7bdat', 'csv');
-            const csv = fs.readFileSync(path.join(__dirname, 'data/csv', filename2), 'utf8');
+            const csv = fs.readFileSync(path.join(csvFolder, filename2), 'utf8');
             const rows2 = await csvParseAsync(csv, {});
 
             assert.equal(rows.length, rows2.length);
@@ -57,7 +66,7 @@ describe('Compare to StatTransfer CSV export', function () {
 
                 for (const col of cols) {
                     if (typeof rows[i][col] === 'string') {
-                        assert.equal(rows[i][col], rows2[i][col]);
+                        assert.equal(rows[i][col], rows2[i][col], `row ${i} equality`);
                     } else {
                         const f = parseFloat(rows2[i][col]);
                         assertCloseEnough(rows[i][col], f);
@@ -70,7 +79,7 @@ describe('Compare to StatTransfer CSV export', function () {
 
 describe('Normal functionality', async () => {
     it('should close file when done streaming', async () => {
-        const sas7bdat = new SAS7BDAT(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
+        const sas7bdat = new SAS7BDAT(path.join(sasFolder, 'andy.sas7bdat'));
         const rows = [];
 
         return new Promise(async (resolve, reject) => {
@@ -106,13 +115,13 @@ describe('Error handling', async () => {
 describe('Options', () => {
     describe('dateFormatter', () => {
         it('default date formatting', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'));
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'datetime.sas7bdat'));
 
             assert.deepEqual(rows[1], ['2015-02-02T14:42:12.000Z', '2015-02-02', '2015-02-02', '2015-02-02', '14:42:12.000']);
         });
 
         it('custom dateFormatter function', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/datetime.sas7bdat'), {
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'datetime.sas7bdat'), {
                 dateFormatter: (d, outputFormat) => {
                     if (outputFormat === 'date') {
                         return 'date';
@@ -130,7 +139,7 @@ describe('Options', () => {
 
     describe('rowFormat', () => {
         it('object', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'), {
                 rowFormat: 'object'
             });
             assert.deepEqual(rows[0], {sales: 73.2, price: 5.69, advert: 1.3});
@@ -140,8 +149,8 @@ describe('Options', () => {
 
     describe('skipHeader', () => {
         it('skips header when true', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
-            const rows2 = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'));
+            const rows2 = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'), {
                 skipHeader: true
             });
             assert.deepEqual(rows2[0], [73.2, 5.69, 1.3]);
@@ -149,11 +158,11 @@ describe('Options', () => {
         });
 
         it('does nothing when rowFormat=object', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'), {
                 skipHeader: false,
                 rowFormat: 'object'
             });
-            const rows2 = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+            const rows2 = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'), {
                 skipHeader: true,
                 rowFormat: 'object'
             });
@@ -216,8 +225,8 @@ describe('Options', () => {
 
     describe('encoding', () => {
         it('does something', async () => {
-            const rows = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'));
-            const rows2 = await SAS7BDAT.parse(path.join(__dirname, 'data/sas7bdat/andy.sas7bdat'), {
+            const rows = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'));
+            const rows2 = await SAS7BDAT.parse(path.join(sasFolder, 'andy.sas7bdat'), {
                 encoding: 'hex'
             });
             assert.notDeepEqual(rows[0], rows2[0]);

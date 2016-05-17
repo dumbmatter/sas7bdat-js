@@ -97,7 +97,6 @@ class Decompressor {
 
     static to_chr(int_or_str) {
         if (typeof int_or_str === 'string') {
-//console.log('to_chrA', int_or_str)
             return int_or_str;
         }
         if (int_or_str instanceof Buffer) {
@@ -106,10 +105,8 @@ class Decompressor {
             for (let i = 0; i < int_or_str.length; i++) {
                 str += String.fromCharCode(int_or_str[i]);
             }
-//console.log('to_chrB', int_or_str, str)
             return str;
         }
-//console.log('to_chrC', int_or_str, String.fromCharCode(int_or_str))
         return String.fromCharCode(int_or_str);
     }
 }
@@ -168,9 +165,7 @@ class RLEDecompressor extends Decompressor {
                 const count_of_bytes_to_copy = Math.min(end_of_first_byte + 1, length - (i + 1));
                 const start = offset + i + 1;
                 const end = start + count_of_bytes_to_copy;
-//console.log('before', page.slice(start, end))
                 result.push(c(page.slice(start, end)));
-//console.log('after', Buffer.from(result[result.length - 1], 'ascii'));
                 i += count_of_bytes_to_copy;
                 current_result_array_index += count_of_bytes_to_copy;
             } else if (control_byte === 0x90) {
@@ -219,7 +214,6 @@ class RLEDecompressor extends Decompressor {
                 throw new Error(`unknown control byte: ${control_byte}`);
             }
             i += 1;
-//if (result.length > 6) { console.log(result, Buffer.from(result.join(''), 'ascii')); foo; }
         }
 
         result = Buffer.from(result.join(''), 'ascii');
@@ -1710,3 +1704,15 @@ SAS7BDAT.toCsv = (sasFilename, csvFilename, {sasOptions, csvOptions}) => {
 };
 
 module.exports = SAS7BDAT;
+
+/*SAS7BDAT.parse('test/data/sas7bdat/sv.sas7bdat')
+    .then(rows => console.log(rows[1]))
+    .catch(err => console.log(err));
+
+SAS7BDAT.toCsv('test/data/sas7bdat/sv.sas7bdat', 'test.csv', {
+        csvOptions: {
+            quotedEmpty: false,
+            quotedString: true
+        }
+    })
+    .catch(err => console.log(err));*/
