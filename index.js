@@ -83,7 +83,7 @@ class Decompressor {
         this.parent = parent;
     }
 
-    decompress_row(offset, length, result_length, page) {
+    decompress_row() {
         throw new NotImplementedError();
     }
 
@@ -103,7 +103,7 @@ class Decompressor {
             // Not sure why int_or_str.toString('ascii'); fails, but sometimes it does
             let str = '';
             for (let i = 0; i < int_or_str.length; i++) {
-                str += String.fromCharCode(int_or_str[i])
+                str += String.fromCharCode(int_or_str[i]);
             }
 //console.log('to_chrB', int_or_str, str)
             return str;
@@ -233,7 +233,7 @@ class RLEDecompressor extends Decompressor {
 
 // Decompresses data using the Ross Data Compression algorithm
 class RDCDecompressor extends Decompressor {
-    constructor () {
+    constructor() {
         super();
         throw new NotImplementedError();
     }
