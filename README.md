@@ -27,7 +27,20 @@ First load the module:
         .then(rows => console.log(rows))
         .catch(err => console.log(err));
 
-There is also a convenience function `SAS7BDAT.toCsv` for converting to CSV, documentation coming soon...
+`SAS7BDAT.toCsv` converts a sas7bdat file to CSV format:
+
+    SAS7BDAT.toCsv('test.sas7bdat', 'test.csv', {
+            sasOptions: {
+                // See below, same as second argument to other SAS7BDAT functions
+            }
+            csvOptions: {
+                // These are passed to http://csv.adaltas.com/stringify/
+                quotedEmpty: false,
+                quotedString: true
+            }
+        })
+        .then(rows => console.log('Done!'))
+        .catch(err => console.log(err));
 
 ## Options
 
