@@ -27,6 +27,8 @@ First load the module:
         .then(rows => console.log(rows))
         .catch(err => console.log(err));
 
+There is also a convenience function `SAS7BDAT.toCsv` for converting to CSV, documentation coming soon...
+
 ## Options
 
 Pass an `options` object as the second parameter to `SAS7BDAT.createReadStream` or `SAS7BDAT.parse`:

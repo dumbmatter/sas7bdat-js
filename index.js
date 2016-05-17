@@ -1,3 +1,4 @@
+const csvStringify = require('csv-stringify');
 const denodeify = require('denodeify');
 const fs = require('fs-ext');
 const path = require('path');
@@ -847,64 +848,6 @@ class SAS7BDAT {
         }
         return row_elements;
     }
-
-/*    convert_file(out_file, delimiter=',', step_size=100000) {
-        """
-        convert_file(out_file[, delimiter[, step_size]]) -> null
-
-        A convenience method to convert a SAS7BDAT file into a delimited
-        text file. Defaults to comma separated. The step_size parameter
-        is uses to show progress on longer running conversions.
-        """
-        delimiter = str(delimiter)
-        this.logger.debug(`saving as: ${out_file}`)
-        out_f = null
-        success = true
-        try:
-            if out_file === '-':
-                out_f = sys.stdout
-            } else {
-                out_f = open(out_file, 'w')
-            out = csv.writer(out_f, lineterminator='\n', delimiter=delimiter)
-            i = 0
-            for i, line in enumerate(1) {
-                if line.length !== (this.properties.column_count || 0) {
-                    msg = 'parsed line into %s columns but was ' \
-                          'expecting %s.\n%s' %\
-                          (line.length, this.properties.column_count, line)
-                    throw new Error(msg)
-                    success = false
-                    if this.logger.level === logging.DEBUG:
-                        raise ParseError(msg)
-                    break
-                if not i % step_size:
-                    this.logger.info(
-                        '%.1f%% complete',
-                        float(i) / this.properties.row_count * 100.0
-                    )
-                try:
-                    out.writerow(line)
-                except IOError:
-                    this.logger.warning('wrote %s lines before interruption', i)
-                    break
-            this.logger.info('\u27f6 [%s] wrote %s of %s lines',
-                             os.path.basename(out_file), i - 1,
-                             this.properties.row_count || 0)
-        finally:
-            if (out_f !== null) {
-                out_f.close()
-        return success
-
-    to_data_frame() {
-        """
-        to_data_frame() -> pandas.DataFrame object
-
-        A convenience method to convert a SAS7BDAT file into a pandas
-        DataFrame.
-        """
-        import pandas as pd
-        data = list(this.readlines())
-        return pd.DataFrame(data.slice(1), columns=data[0])*/
 }
 
 class Column {
@@ -1734,7 +1677,7 @@ SAS7BDAT.createReadStream = (filename, options) => {
     return sas7bdat.create_read_stream();
 };
 
-SAS7BDAT.parse = async (filename, options) => {
+SAS7BDAT.parse = (filename, options) => {
     return new Promise(async (resolve, reject) => {
         const rows = [];
         const stream = SAS7BDAT.createReadStream(filename, options);
@@ -1744,8 +1687,26 @@ SAS7BDAT.parse = async (filename, options) => {
     });
 };
 
-module.exports = SAS7BDAT;
+SAS7BDAT.toCsv = (sasFilename, csvFilename, {sasOptions, csvOptions}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const stream = SAS7BDAT.createReadStream(sasFilename, sasOptions);
+            stream.on('error', err => reject(err));
 
-/*SAS7BDAT.parse('test/data/sas7bdat/co.sas7bdat')
-    .then(rows => console.log(rows))
-    .catch(err => console.log(err));*/
+            const stringifier = csvStringify(csvOptions);
+            stringifier.on('error', err => reject(err));
+
+            const writeStream = fs.createWriteStream(csvFilename);
+            writeStream.on('error', err => reject(err));
+            writeStream.on('finish', () => resolve());
+
+            stream
+                .pipe(stringifier)
+                .pipe(writeStream);
+        } catch (err) {
+            reject(err);
+        }
+    });
+};
+
+module.exports = SAS7BDAT;

@@ -15,12 +15,13 @@
     "build": "rm -rf build && babel index.js -d build",
     "prepublish": "npm run build",
     "eslint": "eslint index.js test/*.js",
-    "mocha": "mocha --compilers js:babel-register",
+    "mocha": "mocha --compilers js:babel-register --max-old-space-size=15000",
     "test": "npm run eslint && npm run mocha"
   },
   "author": "Jeremy Scheff <jdscheff@gmail.com>",
   "license": "Apache-2.0",
   "dependencies": {
+    "csv-stringify": "^1.0.4",
     "denodeify": "^1.2.1",
     "fs-ext": "^0.5.0"
   },
