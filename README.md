@@ -2,7 +2,7 @@
 
 Read SAS files in JavaScript. Because you always wanted to do that, right?
 
-Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7bdat). All functionality should be the same, except sas7bdat-js does not support compression yet.
+Ported from [the sas7bdat Python package](https://bitbucket.org/jaredhobbs/sas7bdat). All functionality should be the same, except sas7bdat-js supports fewer compression methods.
 
 ## Install
 
