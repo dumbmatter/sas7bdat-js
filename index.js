@@ -50,14 +50,14 @@ const struct_unpack = (fmt, raw_bytes) => {
         return raw_bytes.toString();
     } else if (letter === 'd') {
         if (endian === 'big') {
-            return raw_bytes.readDoubleBE();
+            return raw_bytes.readDoubleBE(0);
         }
-        return raw_bytes.readDoubleLE();
+        return raw_bytes.readDoubleLE(0);
     } else if (letter === 'i') {
         if (endian === 'big') {
-            return raw_bytes.readInt32BE();
+            return raw_bytes.readInt32BE(0);
         }
-        return raw_bytes.readInt32LE();
+        return raw_bytes.readInt32LE(0);
     } else if (letter === 'b') {
         // Only ever called for 1 char, so this should be fine (and for both directions)
         return raw_bytes.readIntBE(0, 1);
@@ -69,9 +69,9 @@ const struct_unpack = (fmt, raw_bytes) => {
         return raw_bytes.readIntLE(0, 6);
     } else if (letter === 'h') {
         if (endian === 'big') {
-            return raw_bytes.readInt16BE();
+            return raw_bytes.readInt16BE(0);
         }
-        return raw_bytes.readInt16LE();
+        return raw_bytes.readInt16LE(0);
     }
 };
 
