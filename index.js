@@ -16,6 +16,9 @@ const read_file = async (file, offset, length) => {
 };
 
 const fs_seek_async = denodeify(fs.seek);
+const seek_file = (sas7bdat, offset) => {
+    fs_seek_async(sas7bdat._file, offset, 0);
+};
 
 const fs_close_async = denodeify(fs.close);
 const close_file = sas7bdat => fs_close_async(sas7bdat._file);
@@ -558,7 +561,7 @@ class SAS7BDAT {
                 while (skipped < (offset - this.current_file_position)) {
                     const seek = offset - this.current_file_position - skipped;
                     skipped += seek;
-                    fs_seek_async(this._file, seek, 0);
+                    await seek_file(this, seek);
                 }
                 const {buffer: tmp} = await read_file(this._file, 0, length);
                 if (tmp.length < length) {
@@ -670,7 +673,7 @@ class SAS7BDAT {
             return this.column_names_strings_decoded;
         }
         if (!this.cached_page) {
-            await fs_seek_async(this._file, this.properties.header_length, 0);
+            await seek_file(this, this.properties.header_length);
             await this._read_next_page();
         }
         if (this.current_row_in_file_index < row_count) {
