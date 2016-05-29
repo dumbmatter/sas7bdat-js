@@ -5,7 +5,7 @@ const path = require('path');
 const stream = require('stream');
 
 const fs_open_async = denodeify(fs.open);
-const fs_seek_async = denodeify(fs.seek);
+const open_file = fs_open_async;
 
 const fs_read_async = denodeify(fs.read);
 const read_file = async (file, offset, length) => {
@@ -14,6 +14,8 @@ const read_file = async (file, offset, length) => {
 
     return {buffer, bytesRead};
 };
+
+const fs_seek_async = denodeify(fs.seek);
 
 const fs_close_async = denodeify(fs.close);
 const close_file = sas7bdat => fs_close_async(sas7bdat._file);
@@ -442,8 +444,9 @@ throw new NotImplementedError();
     }*/
 }
 
+// file can be string file path (NodeJS) or ArrayBuffer (client-side)
 class SAS7BDAT {
-    constructor(path, {logLevel = 'warning', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
+    constructor(file, {logLevel = 'warning', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
         this.RLE_COMPRESSION = 'SASYZCRL';
         SAS7BDAT.RLE_COMPRESSION = this.RLE_COMPRESSION;
         this.RDC_COMPRESSION = 'SASYZCR2';
@@ -457,7 +460,7 @@ class SAS7BDAT {
         this.DATE_TIME_FORMAT_STRINGS = ['DATETIME'];
         this.DATE_FORMAT_STRINGS = ['YYMMDD', 'MMDDYY', 'DDMMYY', 'DATE', 'JULIAN', 'MONYY', 'WEEKDATE'];
 
-        this.path = path;
+        this.path = typeof file === 'string' ? file : null;
         this.endianess = null;
         this.u64 = false;
         this.logger = this._make_logger(logLevel);
@@ -469,7 +472,7 @@ class SAS7BDAT {
         this.align_correction = alignCorrection;
         this.date_formatter = dateFormatter;
         this.row_format = rowFormat;
-        this._file = null;
+        this._file = typeof file === 'string' ? null : file;
         this.cached_page = null;
         this.current_page_type = null;
         this.current_page_block_count = null;
@@ -493,7 +496,9 @@ class SAS7BDAT {
 
     async parse_header() {
         this.logger.debug('Start parse_header');
-        this._file = await fs_open_async(this.path, 'r');
+        if (this._file === null) {
+            this._file = await open_file(this.path, 'r');
+        }
         this.header = new SASHeader(this);
         await this.header.parse();
         this.properties = this.header.properties;
