@@ -514,22 +514,6 @@ class SAS7BDAT {
     }
 
     _make_logger(level = 'info') {
-/*        logger = logging.getLogger(this.path)
-        logger.setLevel(level)
-        fmt = '%(message)s'
-        stream_handler = logging.StreamHandler()
-        if platform.system() !== 'Windows':
-            stream_handler.emit = _get_color_emit(
-                os.path.basename(this.path),
-                stream_handler.emit
-            )
-        } else {
-            fmt = '[%s] %%(message)s' % os.path.basename(this.path)
-        formatter = logging.Formatter(fmt, '%y-%m-%d %H:%M:%S')
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-        return logger*/
-
         const levels = {
             debug: 0,
             info: 1,
