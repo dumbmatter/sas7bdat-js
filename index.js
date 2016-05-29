@@ -4,17 +4,19 @@ const fs = require('fs-ext');
 const path = require('path');
 const stream = require('stream');
 
-const fs_close_async = denodeify(fs.close);
 const fs_open_async = denodeify(fs.open);
-const fs_read_async = denodeify(fs.read);
 const fs_seek_async = denodeify(fs.seek);
 
+const fs_read_async = denodeify(fs.read);
 const read_file = async (file, offset, length) => {
     const buffer = Buffer.alloc(length);
     const bytesRead = await fs_read_async(file, buffer, offset, length, null);
 
     return {buffer, bytesRead};
 };
+
+const fs_close_async = denodeify(fs.close);
+const close_file = sas7bdat => fs_close_async(sas7bdat._file);
 
 class NotImplementedError extends Error {
     constructor(message) {
@@ -442,8 +444,6 @@ throw new NotImplementedError();
 
 class SAS7BDAT {
     constructor(path, {logLevel = 'warning', extraTimeFormatStrings = null, extraDatetimeFormatStrings = null, extraDateFormatStrings = null, skipHeader = false, encoding = 'utf8', alignCorrection = true, dateFormatter = null, rowFormat = 'array'} = {}) {
-        this._open_files = [];
-        SAS7BDAT._open_files = this._open_files;
         this.RLE_COMPRESSION = 'SASYZCRL';
         SAS7BDAT.RLE_COMPRESSION = this.RLE_COMPRESSION;
         this.RDC_COMPRESSION = 'SASYZCR2';
@@ -494,7 +494,6 @@ class SAS7BDAT {
     async parse_header() {
         this.logger.debug('Start parse_header');
         this._file = await fs_open_async(this.path, 'r');
-        this._open_files.push(this._file);
         this.header = new SASHeader(this);
         await this.header.parse();
         this.properties = this.header.properties;
@@ -517,7 +516,7 @@ class SAS7BDAT {
     }
 
     async close() {
-        await fs_close_async(this._file);
+        await close_file(this);
     }
 
     _make_logger(level = 'info') {
@@ -1645,14 +1644,6 @@ class SASHeader {
         return new SubheaderPointer(subheader_offset, subheader_length, subheader_compression, subheader_type);
     }
 }
-
-const cleanUp = async () => {
-    for (const fd of SAS7BDAT._open_files) {
-        await fs_close_async(fd);
-    }
-};
-
-process.on('exit', () => cleanUp());
 
 SAS7BDAT.createReadStream = (filename, options) => {
     const sas7bdat = new SAS7BDAT(filename, options);
