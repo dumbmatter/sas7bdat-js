@@ -12,9 +12,9 @@
   },
   "main": "build/index.js",
   "scripts": {
-    "build": "rm -rf build && babel index.js -d build",
+    "build": "rm -rf build && babel *.js -d build",
     "prepublish": "npm run build",
-    "eslint": "eslint index.js test/*.js",
+    "eslint": "eslint *.js test/*.js",
     "mocha": "mocha --compilers js:babel-register --max-old-space-size=15000",
     "test": "npm run eslint && npm run mocha"
   },
