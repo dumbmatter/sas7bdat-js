@@ -8,9 +8,9 @@ const fs_open_async = denodeify(fs.open);
 const open_file = fs_open_async;
 
 const fs_read_async = denodeify(fs.read);
-const read_file = async (file, offset, length) => {
+const read_file = async (sas7bdat, offset, length) => {
     const buffer = Buffer.alloc(length);
-    const bytesRead = await fs_read_async(file, buffer, offset, length, null);
+    const bytesRead = await fs_read_async(sas7bdat._file, buffer, offset, length, null);
 
     return {buffer, bytesRead};
 };
@@ -495,6 +495,7 @@ class SAS7BDAT {
         this.sent_header = false;
         this.current_row_in_file_index = 0;
         this.current_row_on_page_index = 0;
+        this.file_pos = 0;
     }
 
     async parse_header() {
@@ -563,7 +564,7 @@ class SAS7BDAT {
                     skipped += seek;
                     await seek_file(this, seek);
                 }
-                const {buffer: tmp} = await read_file(this._file, 0, length);
+                const {buffer: tmp} = await read_file(this, 0, length);
                 if (tmp.length < length) {
                     throw new Error(`failed to read ${length} bytes from sas7bdat file`);
                 }
@@ -761,7 +762,7 @@ class SAS7BDAT {
 
     async _read_next_page() {
         this.current_page_data_subheader_pointers = [];
-        const {buffer: cached_page, bytesRead} = await read_file(this._file, 0, this.properties.page_length);
+        const {buffer: cached_page, bytesRead} = await read_file(this, 0, this.properties.page_length);
         this.cached_page = cached_page;
         if (bytesRead <= 0) {
             return;
@@ -1397,7 +1398,7 @@ class SASHeader {
 
     async parse() {
         // Check magic number
-        let {buffer: h} = await read_file(this.parent._file, 0, 288);
+        let {buffer: h} = await read_file(this.parent, 0, 288);
         this.parent.cached_page = h;
         if (h.length < 288) {
             throw new Error('header too short (not a sas7bdat file?)');
@@ -1484,7 +1485,7 @@ class SASHeader {
             this.parent.logger.warning(`header length ${this.properties.header_length} !== 8192`);
         }
 
-        const {buffer: tmp} = await read_file(this.parent._file, 0, this.properties.header_length - 288);
+        const {buffer: tmp} = await read_file(this.parent, 0, this.properties.header_length - 288);
         this.parent.cached_page = Buffer.concat([this.parent.cached_page, tmp]);
         h = this.parent.cached_page;
         if (h.length !== this.properties.header_length) {
@@ -1539,7 +1540,7 @@ class SASHeader {
     async parse_metadata() {
         let done = false;
         while (!done) {
-            const {buffer: cached_page} = await read_file(this.parent._file, 0, this.properties.page_length);
+            const {buffer: cached_page} = await read_file(this.parent, 0, this.properties.page_length);
             this.parent.cached_page = cached_page;
             if (this.parent.cached_page.length <= 0) {
                 break;
