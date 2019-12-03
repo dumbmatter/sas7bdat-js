@@ -1,5 +1,6 @@
 const denodeify = require('denodeify');
-const fs = require('fs-ext');
+const fs = require('fs');
+const {seek} = require('fs-ext');
 const sas7bdatFactory = require('./sas7bdat-factory.js');
 
 const fs_open_async = denodeify(fs.open);
@@ -13,7 +14,7 @@ const read_file = async (sas7bdat, offset, length) => {
     return {buffer, bytesRead};
 };
 
-const fs_seek_async = denodeify(fs.seek);
+const fs_seek_async = denodeify(seek);
 const seek_file = (sas7bdat, offset) => {
     fs_seek_async(sas7bdat._file, offset, 0);
 };
