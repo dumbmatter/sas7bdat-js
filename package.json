@@ -1,6 +1,6 @@
 {
   "name": "sas7bdat",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Read SAS files in JavaScript. Because you always wanted to do that, right?",
   "homepage": "https://github.com/dumbmatter/sas7bdat-js",
   "repository": {
@@ -60,5 +60,7 @@
       "transform-async-to-generator"
     ]
   },
-  "files": ["build"]
+  "files": [
+    "build"
+  ]
 }
